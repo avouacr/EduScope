@@ -1,0 +1,492 @@
+---
+title: "EduScope"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    #social: menu
+    #source_code: embed
+    theme: spacelab
+    #vertical_layout: scroll
+    #sandstone
+    #spacelab
+    #logo: logo_ajust(1).png
+runtime: shiny
+---
+
+```{r }
+# Chargement des packages (et installation si nécessaire)
+check_packages <-function (...) {
+    libs<-unlist(list(...))
+    req<-unlist(lapply(libs,require,character.only=TRUE))
+    need<-libs[req==FALSE]
+    if(length(need)>0){ 
+        install.packages(need)
+        lapply(need,require,character.only=TRUE)
+    }
+}
+check_packages("flexdashboard", "dplyr", "readr", "ggplot2", "scales", "leaflet",
+               "plotly", "DT", "sf")
+
+# Import des données
+data_simul_college <- read_delim("data/data_simul_acad_caen.csv", delim = "|")
+filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
+
+dep_shp <- st_read("data/shp/departements-20140306-5m.shp", 
+                    crs = 4326)
+acad_shp <- st_read("data/shp/academies-20160209.shp", 
+                    crs = 4326)
+unzip("data/shp/CONTOURS-IRIS.zip", exdir = "data/shp")
+iris_shp <- st_read("data/shp/CONTOURS-IRIS.shp", 
+                    crs = 2154) %>% st_transform(crs = 4326)
+
+# Préparation des données pour l'appli Shiny
+
+
+```
+
+
+<style type="text/css">
+
+.navbar-brand{ /* Titre de l'appli  */
+      font-size: 30px;
+font-family: Century Gothic, sans-serif;
+}
+
+.chart-title{ /* Titre des boxes  */
+      font-size: 20px;
+      color: DarkRed;
+  }
+  
+  .control-label{ 
+      color: black !important;
+  }
+
+body{ /* Titre des onglets  */
+      font-size: 17px;
+      font-family: Century Gothic, sans-serif;
+  }
+  
+  /* Barre de navigation  */
+
+.navbar {
+  background :  #283747  !important;
+  border :black !important;
+}
+  
+  .sidebar{
+background: #5d6d7e !important;
+}
+
+  h2{ /* Titres  */
+      font-size: 19px;
+      font-family: Century Gothic, sans-serif;
+      color: #f2f3f4 ;
+      font-weight: bold;
+  }
+  
+  .control-label{ /* Titres  */
+      font-size: 15px;
+      font-family: Century Gothic, sans-serif;
+      color: #f2f3f4 ;
+  }
+  
+ .college {
+  color: #95a5a6 ; 
+  font-size: 58px; 
+  font-family: 'Signika', sans-serif;
+  text-align: center;
+  font-weight: bold;
+}
+  
+</style>
+
+Sidebar {.sidebar}
+=======================================================================
+
+Année
+------------------------------------------------------------------
+```{r }
+selectInput('year_id', label = NULL, choices = unique(data_simul_college$annee))
+```
+
+Lieu
+------------------------------------------------------------------
+```{r }
+selectInput('dep_id', label = 'Département', choices = unique(data_simul_college$dep[data_simul_college$acad=="Caen"]),selected=NULL,multiple = FALSE)
+selectInput('comm_id', label = 'Commune', choices =  unique(data_simul_college$commune[data_simul_college$acad=="Caen"]),selected=NULL,multiple = FALSE)
+```
+
+Etablissement
+------------------------------------------------------------------
+```{r }
+selectInput('sect_id', label = "Secteur", choices = unique(data_simul_college$s[data_simul_college$acad=="Caen"]))
+selectInput('etab_id', label = "Nom de l'établissement", choices = unique(data_simul_college$nom_norme[data_simul_college$acad=="Caen"]))
+```
+
+
+Présentation de l'établissement {data-icon="fa-university"}
+=======================================================================
+
+Row {data-height=10}
+------------------------------------------------------------------
+
+Row {.college data-height=60}
+------------------------------------------------------------------
+&nbsp;&nbsp;
+
+```{r}
+renderText({ 
+input$etab_id
+  })
+```
+
+Row {data-height=10}
+------------------------------------------------------------------
+&nbsp;&nbsp;
+
+```{r}
+renderText({ 
+unique(data_simul_college$commune[data_simul_college$nom_norme == input$etab_id])
+  })
+```
+
+Row {data-height=20}
+------------------------------------------------------------------
+
+
+Row 
+------------------------------------------------------------------
+
+### Education prioritaire
+```{r }
+library(flexdashboard)
+REP_selected <- renderText({ 
+    as.character(data_simul_college$ep[data_simul_college$nom_norme==unique(input$etab_id)][1])
+  })
+
+renderValueBox({
+  valueBox(
+    value = REP_selected,
+        color = "primary")
+})
+```
+
+### Secteur
+```{r }
+secteur_selected <- renderText({ 
+    paste0("P",substr(data_simul_college$secteur[data_simul_college$nom_norme==unique(input$etab_id)][1], 2,nchar(data_simul_college$secteur[data_simul_college$nom_norme==unique(input$etab_id)][1])))
+  })
+
+renderValueBox({
+  valueBox(
+    value = secteur_selected,
+        color = "primary")
+})
+```
+
+### Nombre d'élèves
+```{r }
+effectif_selected <- renderText({ 
+    data_simul_college$effectif_1er_cycle[data_simul_college$nom_norme==unique(input$etab_id)][1]
+  })
+
+renderValueBox({
+  valueBox(
+    value = effectif_selected,
+        color = "primary")
+})
+```
+
+Row {.college data-height=10}
+------------------------------------------------------------------
+
+
+Row 
+------------------------------------------------------------------
+
+### Indice de position sociale
+```{r }
+renderValueBox({
+  valueBox(
+    value = data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id & data_simul_college$annee==input$year_id][1],
+    icon = "fa-balance-scale",
+        #color = "orange")
+        color = if (as.numeric(data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$ips_total[data_simul_college$annee==input$year_id], 0.75)) "#fadf63" else 
+          if (as.numeric(data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$ips_total[data_simul_college$annee==input$year_id], 0.5)) "#e9c46a" else 
+             if (as.numeric(data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$ips_total[data_simul_college$annee==input$year_id], 0.25)) "#e9c46a" else
+               "#e76f51")
+})
+```
+
+### Nombre d'élèves par structure
+```{r }
+renderValueBox({
+  valueBox(
+    value = data_simul_college$esurs_1er_cycle[data_simul_college$nom_norme==input$etab_id & data_simul_college$annee==input$year_id][1],
+    icon = "fa-users",
+        #color = "orange")
+        color = if (as.numeric(data_simul_college$esurs_1er_cycle[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$esurs_1er_cycle[data_simul_college$annee==input$year_id], 0.75)) "#e76f51" else 
+          if (as.numeric(data_simul_college$esurs_1er_cycle[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$esurs_1er_cycle[data_simul_college$annee==input$year_id], 0.5)) "#e9c46a" else 
+             if (as.numeric(data_simul_college$esurs_1er_cycle[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$esurs_1er_cycle[data_simul_college$annee==input$year_id], 0.25)) "#e9c46a" else
+               "#fadf63")
+})
+```
+
+### Note à l'écrit du brevet
+```{r }
+renderValueBox({
+  valueBox(
+    value = data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id & data_simul_college$annee==input$year_id][1],
+    icon = "fa-graduation-cap",
+        #color = "orange")
+        color = if (as.numeric(data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$note_ecrit_dnb[data_simul_college$annee==input$year_id], 0.75)) "#fadf63" else 
+          if (as.numeric(data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$note_ecrit_dnb[data_simul_college$annee==input$year_id], 0.5)) "#e9c46a" else 
+             if (as.numeric(data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$note_ecrit_dnb[data_simul_college$annee==input$year_id], 0.25)) "#e9c46a" else
+               "#e76f51")
+})
+```
+
+
+Row 
+------------------------------------------------------------------
+
+
+
+### Comparaison IPS académie
+```{r }
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+ips_distrib <- function(data, point,periode) {
+    
+    acad_etab <- data$acad[data$nom_norme == point][1]
+    
+    df_ips <- data %>%
+      filter(annee == periode,
+             acad == acad_etab) %>%
+      select(etab, nom_norme, ips_total) %>%
+      mutate(highlight = ifelse(nom_norme == point, 1, 0)) %>%
+      distinct(nom_norme, .keep_all= TRUE)
+    
+    df_ips$highlight[df_ips$highlight == 1] <- c(1, rep(0, 
+                                                        length(df_ips$highlight[df_ips$highlight == 1]) -1))
+    
+
+  min_ips <- min(data$ips_total, na.rm = T)
+  max_ips <- max(data$ips_total, na.rm = T)
+  
+  df_ips <- df_ips %>%
+    mutate(nom_norme = reorder(nom_norme, ips_total))
+  
+  res_plot <- ggplot(data = df_ips, aes(x = nom_norme, 
+                                        y = ips_total,
+                                        fill = ips_total)) +
+    geom_bar(stat = "identity") +
+    scale_y_continuous(limits = c(min_ips, max_ips), oob = rescale_none) +
+    scale_fill_gradient(low = "red", 
+                        high = "yellow") +
+    geom_vline(xintercept = which(levels(df_ips$nom_norme) == point), 
+               color = "#3a506b", size = 1.5) +
+    labs(y = "Indice de position sociale moyen") +
+    theme(axis.text.x = element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y = element_text(size = 14),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white"),
+          panel.grid.major.y = element_line(color = "grey"))
+  
+  return(res_plot)
+}
+
+ renderPlot({
+      ips_distrib(data_simul_college, input$etab_id,input$year_id)
+    })
+
+```
+
+### Comparaison de la moyenne aux épreuves du DNB dans l'académie
+```{r }
+
+brevet_distrib <- function(data, point,periode) {
+    
+    acad_etab <- data$acad[data$nom_norme == point][1]
+    
+    df_brevet <- data %>%
+      filter(annee == periode,
+             acad == acad_etab) %>%
+      select(etab, nom_norme, note_ecrit_dnb) %>%
+      mutate(highlight = ifelse(nom_norme == point, 1, 0)) %>%
+      distinct(nom_norme, .keep_all= TRUE)
+    
+    df_brevet$highlight[df_brevet$highlight == 1] <- c(1, rep(0, 
+                                                        length(df_brevet$highlight[df_brevet$highlight == 1]) -1))
+    
+
+  min_brevet <- min(data$note_ecrit_dnb, na.rm = T)
+  max_brevet <- max(data$note_ecrit_dnb, na.rm = T)
+  
+  df_brevet <- df_brevet %>%
+    mutate(nom_norme = reorder(nom_norme, note_ecrit_dnb))
+  
+  res_plot <- ggplot(data = df_brevet, aes(x = nom_norme, 
+                                        y = note_ecrit_dnb,
+                                        fill = note_ecrit_dnb)) +
+    geom_bar(stat = "identity") +
+    scale_y_continuous(limits = c(min_brevet, max_brevet), oob = rescale_none) +
+    scale_fill_gradient(low = "red", 
+                        high = "yellow") +
+    geom_vline(xintercept = which(levels(df_brevet$nom_norme) == point), 
+               color = "#3a506b", size = 1.5) +
+    labs(y = "Moyenne aux épreuves finales du brevet") +
+    theme(axis.text.x = element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y = element_text(size = 14),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white"),
+          panel.grid.major.y = element_line(color = "grey"))
+  
+  return(res_plot)
+}
+
+ renderPlot({
+      brevet_distrib(data_simul_college, input$etab_id,input$year_id)
+    })
+
+```
+
+Cartographie {data-icon="fa-map-o"}
+=======================================================================
+
+### Carte des collèges
+```{r }
+library(leaflet)
+leaflet() %>% 
+  addProviderTiles("Esri.WorldImagery", group = "Satellite",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>% 
+  addProviderTiles("Esri.WorldStreetMap", group = "Réseaux de transport",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>%
+addProviderTiles("Esri.WorldGrayCanvas", group = "Vierge",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE"))
+```
+
+
+
+Evolution temporelle {data-icon="fa-line-chart"}
+=======================================================================
+
+### Variable à représenter
+```{r }
+selectInput('var_id', label = NULL, choices = c("Effectif","Note au brevet","Indice de position sociale"))
+```
+
+```{r }
+library(plotly)
+
+# plot_dynamique <- function(data, etab, variable) {
+#   
+#   data[,variable] <- as.numeric(data[,variable])
+#   
+#   acad_etab <- data$acad[data$nom_norme == etab][1]
+#   
+#   mean_nat <- data %>%
+#     group_by(annee) %>%
+#     summarise(avg = mean(!!sym(variable), na.rm = T)) %>%
+#     mutate(Echelon = "National")
+#   
+#   mean_acad <- data %>%
+#     filter(acad == acad_etab) %>%
+#     group_by(annee) %>%
+#     summarise(avg = mean(!!sym(variable), na.rm = T)) %>%
+#     mutate(Echelon = "Académie")
+#   
+#   mean_etab <- data[data$nom_norme == etab, ][1:4,c("annee", variable)] %>%
+#     rename(avg = variable) %>%
+#     mutate(Echelon = "Etablissement")
+#   
+#   df_mean_agg <- rbind(mean_etab, mean_acad, mean_nat)
+#   
+#   min <- min(unlist(data[,variable]), na.rm = T)
+#   max <- max(unlist(data[,variable]), na.rm = T)
+#   
+#   # res_plot <- df_mean_agg %>%
+#   #   ggplot(aes(x = annee, y = avg, color = Echelon)) +
+#   #   geom_line(size = 1.5) +
+#   #  # scale_y_continuous(limits = c(min, max)) +
+#   #   scale_color_manual(values = c("red", "black", "blue")) +
+#   #   theme_bw() +
+#   #   labs(x = NULL, y = NULL)
+#   
+#   res_plot <- plot_ly(df_mean_agg, x=~annee,y=~avg, mode = 'lines+markers')
+# 
+#   return(res_plot)
+#   
+# }
+# 
+# renderPlot({
+#       plot_dynamique(data_simul_college, input$etab_id, input$var_id)
+#     })
+
+df_fake <- data.frame(annee=c(2013,2014,2015,2016,2017,2018),
+                      note_college=c(15,14.8,15,13,12,13),
+                      note_acad=c(10,12,12,10,11,12.3),
+                      note_all=c(13,13.5,14,12.5,13,12.5))
+
+plot_ly(df_fake, x=~annee,y=~note_college, mode = 'lines+markers', name = 'Collège') %>%
+   add_trace(y = ~note_acad, mode = 'lines+markers', name = 'Académie') %>%
+   add_trace(y = ~note_college, mode = 'lines+markers', name = 'Collège') %>%
+   add_trace(y = ~note_all, mode = 'lines+markers', name = 'France') %>%
+  layout(legend = list(x = 0.1, y = 0.9)) %>%
+  layout(yaxis = list(title=""),width = 1200)
+
+```
+
+Row 
+------------------------------------------------------------------
+
+Données brutes {data-icon="fa-table"}
+=======================================================================
+
+```{r }
+library(DT)
+datatable(data_simul_college[,c("nom_norme","annee","ep","effectif_1er_cycle","pcs_tres_favorisee","pcs_favorisee","pcs_moyenne","pcs_defavorisee","ips_total","taux_boursiers","etp_enseignants","ens_inf_35_ans","anc_ens_inf2","anc_ens_sup8","esurs_1er_cycle","taux_reussite_dnb","note_ecrit_dnb")],
+          colnames = c('Etablissement', 'Année', 'Educ. Prioritaire', 'Effectif', "% PCS très favo.","% PCS favo","% PCS moyennes","% PCS defavorisées","IPS moyen","% Boursiers","Nb. ETP enseignants","% enseign. -35ans","% ancienneté inf. 2 ans","% ancienneté sup. 8 ans","E/S moyen","% réussite DNB","Note moyenne DNB"),rownames= FALSE)
+```
+
+
+
+Communiquez {data-icon="fa-comments"}
+=======================================================================
+
+Row 
+------------------------------------------------------------------
+```{r }
+textAreaInput("comm_etab", label="En tant que directeur de l'établissement, vous pouvez faire remonter des remarques sur votre établissement", value = "...",height=200,width=1000)
+```
+
+Row {data-height=10}
+------------------------------------------------------------------
+```{r }
+actionButton("buttone", "Envoyer",icon=icon("send"))
+```
+
+Row {data-height=10}
+------------------------------------------------------------------
+
+Row 
+------------------------------------------------------------------
+
+###Aidez nous à nous améliorer 
+
+```{r }
+radioButtons("Quest_1", "Quels indicateurs auriez-vous aimé apparaître en première page ?",
+                   choices = c("Nombre d'heure par élève","Taille de l'établissement","Profil des enseignants (âge, ancienneté, ...)"),
+                   selected = NULL)
+
+radioButtons("Quest_2", "Quels indicateurs étaient selon vous en trop en preière page ?",
+                   choices = c("Indice de position sociale","Nombre moyen d'élèves par structure","Moyenne aux épreuves écrites du DNB"),
+                   selected = NULL)
+
+textAreaInput("Quest_3", label="Autre commentaire :", value = "...",height=200,width=1000)
+
+actionButton("buttone", "Envoyer",icon=icon("send"))
+
+```
+
