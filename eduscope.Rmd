@@ -279,10 +279,10 @@ renderValueBox({
     value = data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id & data_simul_college$annee==input$year_id][1],
     icon = "fa-balance-scale",
         #color = "orange")
-        color = if (as.numeric(data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$ips_total[data_simul_college$annee==input$year_id], 0.75)) "#fadf63" else 
+        color = if (as.numeric(data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$ips_total[data_simul_college$annee==input$year_id], 0.75)) "#e76f51" else 
           if (as.numeric(data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$ips_total[data_simul_college$annee==input$year_id], 0.5)) "#e9c46a" else 
              if (as.numeric(data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$ips_total[data_simul_college$annee==input$year_id], 0.25)) "#e9c46a" else
-               "#e76f51")
+               "#fadf63")
 })
 ```
 
@@ -307,10 +307,10 @@ renderValueBox({
     value = data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id & data_simul_college$annee==input$year_id][1],
     icon = "fa-graduation-cap",
         #color = "orange")
-        color = if (as.numeric(data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$note_ecrit_dnb[data_simul_college$annee==input$year_id], 0.75)) "#fadf63" else 
+        color = if (as.numeric(data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$note_ecrit_dnb[data_simul_college$annee==input$year_id], 0.75)) "#e76f51" else 
           if (as.numeric(data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$note_ecrit_dnb[data_simul_college$annee==input$year_id], 0.5)) "#e9c46a" else 
              if (as.numeric(data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$note_ecrit_dnb[data_simul_college$annee==input$year_id], 0.25)) "#e9c46a" else
-               "#e76f51")
+               "#fadf63")
 })
 ```
 
@@ -348,14 +348,15 @@ ips_distrib <- function(data, point,periode) {
                                         fill = ips_total)) +
     geom_bar(stat = "identity") +
     scale_y_continuous(limits = c(min_ips, max_ips), oob = rescale_none) +
-    scale_fill_gradient(low = "red", 
-                        high = "yellow") +
+    scale_fill_gradient(high = "red", 
+                        low = "yellow") +
     geom_vline(xintercept = which(levels(df_ips$nom_norme) == point), 
                color = "#3a506b", size = 1.5) +
-    labs(y = "Indice de position sociale moyen") +
+    # labs(y = "Indice de position sociale moyen") +
     theme(axis.text.x = element_blank(),
-          axis.title.x=element_blank(),
-          axis.title.y = element_text(size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
           legend.position = "none",
           panel.background = element_rect(fill = "white"),
           panel.grid.major.y = element_line(color = "grey"))
@@ -398,14 +399,15 @@ brevet_distrib <- function(data, point,periode) {
                                         fill = note_ecrit_dnb)) +
     geom_bar(stat = "identity") +
     scale_y_continuous(limits = c(min_brevet, max_brevet), oob = rescale_none) +
-    scale_fill_gradient(low = "red", 
-                        high = "yellow") +
+    scale_fill_gradient(high = "red", 
+                        low = "yellow") +
     geom_vline(xintercept = which(levels(df_brevet$nom_norme) == point), 
                color = "#3a506b", size = 1.5) +
-    labs(y = "Moyenne aux épreuves finales du brevet") +
+    # labs(y = "Moyenne aux épreuves finales du brevet") +
     theme(axis.text.x = element_blank(),
-          axis.title.x=element_blank(),
-          axis.title.y = element_text(size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
           legend.position = "none",
           panel.background = element_rect(fill = "white"),
           panel.grid.major.y = element_line(color = "grey"))
