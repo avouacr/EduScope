@@ -581,65 +581,76 @@ Evolution temporelle {data-icon="fa-line-chart"}
 
 ### Variable à représenter
 ```{r }
-selectInput('var_id', label = NULL, choices = c("Effectif","Note au brevet","Indice de position sociale"))
+selectInput('var_id', label = NULL, 
+            choices = c("effectif_1er_cycle","note_ecrit_dnb","ips_total"))
 ```
 
 ```{r }
-# plot_dynamique <- function(data, etab, variable) {
-#   
-#   data[,variable] <- as.numeric(data[,variable])
-#   
-#   acad_etab <- data$acad[data$nom_norme == etab][1]
-#   
-#   mean_nat <- data %>%
-#     group_by(annee) %>%
-#     summarise(avg = mean(!!sym(variable), na.rm = T)) %>%
-#     mutate(Echelon = "National")
-#   
-#   mean_acad <- data %>%
-#     filter(acad == acad_etab) %>%
-#     group_by(annee) %>%
-#     summarise(avg = mean(!!sym(variable), na.rm = T)) %>%
-#     mutate(Echelon = "Académie")
-#   
-#   mean_etab <- data[data$nom_norme == etab, ][1:4,c("annee", variable)] %>%
-#     rename(avg = variable) %>%
-#     mutate(Echelon = "Etablissement")
-#   
-#   df_mean_agg <- rbind(mean_etab, mean_acad, mean_nat)
-#   
-#   min <- min(unlist(data[,variable]), na.rm = T)
-#   max <- max(unlist(data[,variable]), na.rm = T)
-#   
-#   # res_plot <- df_mean_agg %>%
-#   #   ggplot(aes(x = annee, y = avg, color = Echelon)) +
-#   #   geom_line(size = 1.5) +
-#   #  # scale_y_continuous(limits = c(min, max)) +
-#   #   scale_color_manual(values = c("red", "black", "blue")) +
-#   #   theme_bw() +
-#   #   labs(x = NULL, y = NULL)
-#   
-#   res_plot <- plot_ly(df_mean_agg, x=~annee,y=~avg, mode = 'lines+markers')
-# 
-#   return(res_plot)
-#   
-# }
-# 
-# renderPlot({
-#       plot_dynamique(data_simul_college, input$etab_id, input$var_id)
-#     })
+plot_dynamique <- function(data, etab, variable) {
 
-df_fake <- data.frame(annee=c(2013,2014,2015,2016,2017,2018),
-                      note_college=c(15,14.8,15,13,12,13),
-                      note_acad=c(10,12,12,10,11,12.3),
-                      note_all=c(13,13.5,14,12.5,13,12.5))
+  acad_etab <- data$acad[data$nom_norme == etab][1]
 
-plot_ly(df_fake, x=~annee,y=~note_college, mode = 'lines+markers', name = 'Collège') %>%
-   add_trace(y = ~note_acad, mode = 'lines+markers', name = 'Académie') %>%
-   add_trace(y = ~note_college, mode = 'lines+markers', name = 'Collège') %>%
-   add_trace(y = ~note_all, mode = 'lines+markers', name = 'France') %>%
-  layout(legend = list(x = 0.1, y = 0.9)) %>%
-  layout(yaxis = list(title=""),width = 1200)
+  mean_nat <- data %>%
+    group_by(annee) %>%
+    summarise(avg_nat = mean(!!sym(variable), na.rm = T))
+
+  mean_acad <- data %>%
+    filter(acad == acad_etab) %>%
+    group_by(annee) %>%
+    summarise(avg_acad = mean(!!sym(variable), na.rm = T))
+
+  mean_etab <- data[data$nom_norme == etab, ][1:4,c("annee", variable)] %>%
+    rename(avg_etab = variable)
+  
+  evo_mean_df <- mean_nat %>%
+    left_join(mean_acad) %>%
+    left_join(mean_etab)
+  
+  prop_axes <- list(
+  tick0 = 0,
+  dtick = 1
+)
+  
+  plotly <- plot_ly(evo_mean_df, x=~round(annee),y=~avg_etab, mode = 'lines+markers', name = 'Collège') %>%
+   add_trace(y = ~avg_acad, mode = 'lines+markers', name = 'Académie') %>%
+   add_trace(y = ~avg_etab, mode = 'lines+markers', name = 'Collège') %>%
+   add_trace(y = ~avg_nat, mode = 'lines+markers', name = 'France') %>%
+  layout(legend = list(x = 0.1, y = 0.9), xaxis = prop_axes, yaxis = list(title=""), width = 1200)
+
+  # df_mean_agg <- rbind(mean_etab, mean_acad, mean_nat)
+  # 
+  # min <- min(unlist(data[,variable]), na.rm = T)
+  # max <- max(unlist(data[,variable]), na.rm = T)
+
+  # res_plot <- df_mean_agg %>%
+  #   ggplot(aes(x = annee, y = avg, color = Echelon)) +
+  #   geom_line(size = 1.5) +
+  #  # scale_y_continuous(limits = c(min, max)) +
+  #   scale_color_manual(values = c("red", "black", "blue")) +
+  #   theme_bw() +
+  #   labs(x = NULL, y = NULL)
+
+  # res_plot <- plot_ly(df_mean_agg, x=~annee,y=~avg, mode = 'lines+markers')
+
+  return(plotly)
+
+}
+
+renderPlotly({
+      plot_dynamique(data_simul_college, input$etab_id, input$var_id)
+    })
+
+# df_fake <- data.frame(annee=c(2013,2014,2015,2016,2017,2018),
+#                       note_college=c(15,14.8,15,13,12,13),
+#                       note_acad=c(10,12,12,10,11,12.3),
+#                       note_all=c(13,13.5,14,12.5,13,12.5))
+# 
+# plot_ly(df_fake, x=~annee,y=~note_college, mode = 'lines+markers', name = 'Collège') %>%
+#    add_trace(y = ~note_acad, mode = 'lines+markers', name = 'Académie') %>%
+#    add_trace(y = ~note_college, mode = 'lines+markers', name = 'Collège') %>%
+#    add_trace(y = ~note_all, mode = 'lines+markers', name = 'France') %>%
+#   layout(legend = list(x = 0.1, y = 0.9)) %>%
+#   layout(yaxis = list(title=""),width = 1200)
 
 ```
 
@@ -662,7 +673,7 @@ Communiquez {data-icon="fa-comments"}
 Row
 ------------------------------------------------------------------
 ```{r }
-textAreaInput("comm_etab", label="Souhaitez-vous faire signaler des informations particulières concernant votre établissement ?", value = "...",height=250,width=1000)
+textAreaInput("comm_etab", label="Souhaitez-vous signaler des informations particulières concernant votre établissement ?", value = "...",height=250,width=1000)
 ```
 
 Row {data-height=5}
@@ -682,15 +693,15 @@ Row
 ###Aidez nous à améliorer l'application
 
 ```{r }
-radioButtons("Quest_1", "Quels indicateurs auriez-vous aimé apparaître en première page ?",
+radioButtons("Quest_1", "Quels indicateurs auriez-vous aimé voir apparaître en première page ?",
                    choices = c("Nombre d'heure par élève","Taille de l'établissement","Profil des enseignants (âge, ancienneté, ...)"),
                    selected = NULL)
 
-radioButtons("Quest_2", "Quels indicateurs étaient selon vous en trop en preière page ?",
+radioButtons("Quest_2", "Quels indicateurs n'étaient selon vous pas nécessaires en première page ?",
                    choices = c("Indice de position sociale","Nombre moyen d'élèves par structure","Moyenne aux épreuves écrites du DNB"),
                    selected = NULL)
 
-textAreaInput("Quest_3", label="Autre commentaire :", value = "...",height=200,width=1000)
+textAreaInput("Quest_3", label="Avez-vous d'autres idées pour améliorer l'application ?", value = "...",height=200,width=1000)
 
 actionButton("buttone", "Envoyer",icon=icon("send"))
 
