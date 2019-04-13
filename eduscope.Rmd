@@ -581,11 +581,20 @@ Evolution temporelle {data-icon="fa-line-chart"}
 
 ### Variable à représenter
 ```{r }
-selectInput('var_id', label = NULL, 
-            choices = c("effectif_1er_cycle","note_ecrit_dnb","ips_total"))
-```
+noms_var <- c("effectif_1er_cycle","pcs_tres_favorisee","pcs_favorisee","pcs_moyenne","pcs_defavorisee","ips_total","taux_boursiers","etp_enseignants","ens_inf_35_ans","anc_ens_inf2","anc_ens_sup8","esurs_1er_cycle","taux_reussite_dnb","note_ecrit_dnb")
 
-```{r }
+noms_complets_var <- c('Effectif', "% PCS très favo.","% PCS favo","% PCS moyennes","% PCS defavorisées","IPS moyen","% Boursiers","Nb. ETP enseignants","% enseign. -35ans","% ancienneté inf. 2 ans","% ancienneté sup. 8 ans","E/S moyen","% réussite DNB","Note moyenne DNB")
+
+data_simul_college_bis <- data_simul_college
+for (i in seq_along(1:length(colnames(data_simul_college_bis)))) {
+  if (colnames(data_simul_college_bis)[i] %in% noms_var) {
+    colnames(data_simul_college_bis)[i] <- noms_complets_var[which(noms_var == colnames(data_simul_college_bis)[i])]
+  }
+}
+
+selectInput('var_id', label = NULL, 
+            choices = noms_complets_var)
+
 plot_dynamique <- function(data, etab, variable) {
 
   acad_etab <- data$acad[data$nom_norme == etab][1]
@@ -606,7 +615,8 @@ plot_dynamique <- function(data, etab, variable) {
     left_join(mean_acad) %>%
     left_join(mean_etab)
   
-  prop_axes <- list(
+  prop_x <- list(
+  title = "Année",
   tick0 = 0,
   dtick = 1
 )
@@ -615,7 +625,7 @@ plot_dynamique <- function(data, etab, variable) {
    add_trace(y = ~avg_acad, mode = 'lines+markers', name = 'Académie') %>%
    add_trace(y = ~avg_etab, mode = 'lines+markers', name = 'Collège') %>%
    add_trace(y = ~avg_nat, mode = 'lines+markers', name = 'France') %>%
-  layout(legend = list(x = 0.1, y = 0.9), xaxis = prop_axes, yaxis = list(title=""), width = 1200)
+  layout(legend = list(x = 0.1, y = 0.9), xaxis = prop_x, yaxis = list(title=""), width = 1200)
 
   # df_mean_agg <- rbind(mean_etab, mean_acad, mean_nat)
   # 
@@ -637,20 +647,8 @@ plot_dynamique <- function(data, etab, variable) {
 }
 
 renderPlotly({
-      plot_dynamique(data_simul_college, input$etab_id, input$var_id)
+      plot_dynamique(data_simul_college_bis, input$etab_id, input$var_id)
     })
-
-# df_fake <- data.frame(annee=c(2013,2014,2015,2016,2017,2018),
-#                       note_college=c(15,14.8,15,13,12,13),
-#                       note_acad=c(10,12,12,10,11,12.3),
-#                       note_all=c(13,13.5,14,12.5,13,12.5))
-# 
-# plot_ly(df_fake, x=~annee,y=~note_college, mode = 'lines+markers', name = 'Collège') %>%
-#    add_trace(y = ~note_acad, mode = 'lines+markers', name = 'Académie') %>%
-#    add_trace(y = ~note_college, mode = 'lines+markers', name = 'Collège') %>%
-#    add_trace(y = ~note_all, mode = 'lines+markers', name = 'France') %>%
-#   layout(legend = list(x = 0.1, y = 0.9)) %>%
-#   layout(yaxis = list(title=""),width = 1200)
 
 ```
 
