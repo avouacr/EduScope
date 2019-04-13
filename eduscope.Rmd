@@ -442,20 +442,16 @@ distr <- classIntervals(filo$DISP_MED14,
                         4, style = "quantile")$brks
 colours <- brewer.pal(4, "YlOrRd")
 
+pub_hors_ep <- data_simul_college %>% filter(secteur=="public" & ep=="Hors EP")
+pub_rep <- data_simul_college %>% filter(secteur=="public" & ep=="REP")
+pub_rep_plus <- data_simul_college %>% filter(secteur=="public" & ep=="REP+")
+
 greenLeafIcon <- makeIcon(
   iconUrl = "data/picto_carte/Picto_etab_public_violet.png",
   #iconUrl ="C:/Users/hbotton/Documents/test_camemb.jpg",
   #iconWidth = 30, iconHeight = 30,
-  iconWidth =data_simul_college$effectif_1er_cycle[data_simul_college$secteur=="public"&data_simul_college$ep=="Hors EP"]/15,
-  iconHeight =data_simul_college$effectif_1er_cycle[data_simul_college$secteur=="public"&data_simul_college$ep=="Hors EP"]/13,
-  iconAnchorX = 0, iconAnchorY = 0
-)
-
-greenLeafIcon_prive <- makeIcon(
-  iconUrl = "data/picto_carte/Picto_etab_prive.png",
-  #iconWidth = 30, iconHeight = 30,
-  iconWidth =data_simul_college$effectif_1er_cycle[data_simul_college$secteur=="privé sous contrat"]/15,
-  iconHeight =data_simul_college$effectif_1er_cycle[data_simul_college$secteur=="privé sous contrat"]/13,
+  iconWidth = pub_hors_ep$effectif_1er_cycle/15,
+  iconHeight = pub_hors_ep$effectif_1er_cycle/13,
   iconAnchorX = 0, iconAnchorY = 0
 )
 
@@ -463,8 +459,8 @@ greenLeafIcon_rep <- makeIcon(
   iconUrl = "data/picto_carte/Picto_etab_public_REP_rose.png",
   #iconUrl ="C:/Users/hbotton/Documents/test_camemb.jpg",
   #iconWidth = 30, iconHeight = 30,
-  iconWidth =data_simul_college$effectif_1er_cycle[data_simul_college$secteur=="public"&data_simul_college$ep=="REP"]/15,
-  iconHeight =data_simul_college$effectif_1er_cycle[data_simul_college$secteur=="public"&data_simul_college$ep=="REP"]/13,
+  iconWidth = pub_rep$effectif_1er_cycle/15,
+  iconHeight = pub_rep$effectif_1er_cycle/13,
   iconAnchorX = 0, iconAnchorY = 0
 )
 
@@ -472,15 +468,65 @@ greenLeafIcon_rep_plus<- makeIcon(
   iconUrl = "data/picto_carte/Picto_etab_public_REP+_rouge.png",
   #iconUrl ="C:/Users/hbotton/Documents/test_camemb.jpg",
   #iconWidth = 30, iconHeight = 30,
-  iconWidth =data_simul_college$effectif_1er_cycle[data_simul_college$secteur=="public"&data_simul_college$ep=="REP+"]/15,
-  iconHeight =data_simul_college$effectif_1er_cycle[data_simul_college$secteur=="public"&data_simul_college$ep=="REP+"]/13,
+  iconWidth = pub_rep_plus$effectif_1er_cycle/15,
+  iconHeight = pub_rep_plus$effectif_1er_cycle/13,
   iconAnchorX = 0, iconAnchorY = 0
 )
 
 output$carto_etab <- renderLeaflet(
   leaflet() %>% #####
   setView(lat = 46.7, lng = 2.56, zoom = 6) %>%
-        addProviderTiles("Esri.WorldStreetMap", group = "Réseaux de transport",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE"))
+        addProviderTiles("Esri.WorldStreetMap", group = "Réseaux de transport",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>%
+      # Collèges Publics Hors EP
+       addMarkers(data = pub_hors_ep,
+                 ~long, ~lat, icon = greenLeafIcon,
+                 popup = pub_hors_ep$popup_coll,
+                 options=popupOptions(closeButton=T),
+                   #label=df_college_idf$Appellation.officiellle[df_college_idf$Dénomination.principale=="COLLEGE"&df_college_idf$REP=="Non"&df_college_idf$REPplus_OK=="Non"], group='Collèges publics',
+                   clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {    
+                                                                                                                                  var childCount = cluster.getChildCount();  
+                                                                                                                                  if (childCount < 100) {  
+                                                                                                                                  c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                  } else { 
+                                                                                                                                  c = 'rgba(255, 255, 255, 0.7);'  
+                                                                                                                                  }    
+                                                                                                                                  return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
+                                                                                                                                  
+    }"))
+  )%>%
+      # Collèges Publics REP
+      addMarkers(data = pub_rep,
+                 ~long, ~lat, icon =greenLeafIcon_rep, 
+                 popup =  pub_rep$popup_coll,
+                 options=popupOptions(closeButton=T),
+                 clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {
+                                                                                                                                var childCount = cluster.getChildCount();
+                                                                                                                                if (childCount < 100) {
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                } else {
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                }
+                                                                                                                                return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
+
+    }"))
+  ) %>%
+
+      # Collèges Publics REP+
+      addMarkers(data = pub_rep_plus,
+                ~long, ~lat, icon = greenLeafIcon_rep_plus, 
+                 popup =  pub_rep_plus$popup_coll,
+                 options=popupOptions(closeButton=T),
+                 clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {
+                                                                                                                                var childCount = cluster.getChildCount();
+                                                                                                                                if (childCount < 100) {
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                } else {
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                }
+                                                                                                                                return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
+
+    }"))
+  )
 )
 
 leafletOutput("carto_etab")
@@ -502,6 +548,7 @@ data_simul_college_sub_carte$popup_coll <- paste("<div class='leaflet-popup-scro
                             "<u>Retour du chef d'établissement :</u>", 
                             "<br>")
 
+
 dep_shp_sub_carte <- dep_shp %>% filter(code_insee %in% unique(data_simul_college$dep))
 
 # iris_shp_sub_carte <- iris_shp %>% filter(dep_num %in% dep_shp_sub_carte$code_insee)
@@ -513,7 +560,7 @@ acad_shp_bbox <- as.vector(st_bbox(acad_shp$geometry[acad_shp$name == acad]))
 carto_etab_proxy <- leafletProxy(mapId = "carto_etab", session = session) 
 carto_etab_proxy %>%
   fitBounds(acad_shp_bbox[1], acad_shp_bbox[2],
-                acad_shp_bbox[3], acad_shp_bbox[4]) %>%
+                acad_shp_bbox[3], acad_shp_bbox[4])
   # addPolygons(data = iris_shp_sub_carte, opacity = 0.4,
   #                   color = "#020202",
   #                   stroke = TRUE, weight = 1,group="Quartiers",
@@ -522,62 +569,7 @@ carto_etab_proxy %>%
   #                   fill = T, fillColor = iris_shp$color_d10,
   #                   fillOpacity = 0.5,highlight = highlightOptions(weight = 6, color = iris_shp$color_d10,
   #                                                                  bringToFront = TRUE)) 
-  
-  # Collèges Publics Hors EP
-  pub_hors_ep <- (data_simul_college_sub_carte %>% filter(secteur=="public" & ep=="Hors EP"))
-       addMarkers(data = pub_hors_ep,
-                 ~long, ~lat, icon =greenLeafIcon,
-                 popup = pub_hors_ep$popup_coll,
-                 options=popupOptions(closeButton=T),
-                   #label=df_college_idf$Appellation.officiellle[df_college_idf$Dénomination.principale=="COLLEGE"&df_college_idf$REP=="Non"&df_college_idf$REPplus_OK=="Non"], group='Collèges publics',
-                   clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {    
-                                                                                                                                  var childCount = cluster.getChildCount();  
-                                                                                                                                  if (childCount < 100) {  
-                                                                                                                                  c = 'rgba(255, 255, 255, 0.7);'
-                                                                                                                                  } else { 
-                                                                                                                                  c = 'rgba(255, 255, 255, 0.7);'  
-                                                                                                                                  }    
-                                                                                                                                  return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
-                                                                                                                                  
-    }"))
-  )%>%
-      # Collèges Publics REP
-      pub_rep <- (data_simul_college_sub_carte %>% filter(secteur=="public" & ep=="REP"))
-      addMarkers(data = pub_rep,
-                 ~long, ~lat, icon =greenLeafIcon_rep, 
-                 popup =  pub_rep$popup_coll,
-                 options=popupOptions(closeButton=T),
-                 clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {
-                                                                                                                                var childCount = cluster.getChildCount();
-                                                                                                                                if (childCount < 100) {
-                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
-                                                                                                                                } else {
-                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
-                                                                                                                                }
-                                                                                                                                return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
-
-    }"))
-  ) %>%
-
-      # Collèges Publics REP+
-      pub_rep_plus <- (data_simul_college_sub_carte %>% filter(secteur=="public" & ep=="REP+"))
-      addMarkers(data = pub_rep_plus,
-                ~long, ~lat, icon = greenLeafIcon_rep_plus, 
-                 popup =  pub_rep_plus$popup_coll,
-                 options=popupOptions(closeButton=T),
-                 clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {
-                                                                                                                                var childCount = cluster.getChildCount();
-                                                                                                                                if (childCount < 100) {
-                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
-                                                                                                                                } else {
-                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
-                                                                                                                                }
-                                                                                                                                return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
-
-    }"))
-  )
-  
-  })
+    })
 ```
 
 
