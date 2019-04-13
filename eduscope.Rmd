@@ -651,7 +651,7 @@ Row {data-height=10}
 Row 
 ------------------------------------------------------------------
 
-###Aidez nous à nous améliorer 
+###Aidez nous à améliorer l'application
 
 ```{r }
 radioButtons("Quest_1", "Quels indicateurs auriez-vous aimé apparaître en première page ?",
