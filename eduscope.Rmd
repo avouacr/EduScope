@@ -13,7 +13,7 @@ output:
 runtime: shiny
 ---
 
-```{r }
+```{r, echo=FALSE}
 # Chargement des packages (et installation si nécessaire)
 check_packages <-function (...) {
     libs<-unlist(list(...))
@@ -28,14 +28,17 @@ check_packages("flexdashboard", "dplyr", "readr", "ggplot2", "scales", "leaflet"
                "plotly", "DT", "sf")
 
 # Import des données
-data_simul_college <- read_delim("data/data_simul_acad_caen.csv", delim = "|")
+data_simul_college <- read_delim("data/data_simul.csv", delim = "|",
+                                 locale = locale(encoding = "latin1"))
 filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
 
 dep_shp <- st_read("data/shp/departements-20140306-5m.shp", 
                     crs = 4326)
 acad_shp <- st_read("data/shp/academies-20160209.shp", 
                     crs = 4326)
-unzip("data/shp/CONTOURS-IRIS.zip", exdir = "data/shp")
+if (!("CONTOURS-IRIS.shp" %in% dir("data/shp"))) {
+  unzip("data/shp/CONTOURS-IRIS.zip", exdir = "data/shp")
+}
 iris_shp <- st_read("data/shp/CONTOURS-IRIS.shp", 
                     crs = 2154) %>% st_transform(crs = 4326)
 
@@ -159,7 +162,6 @@ Row
 
 ### Education prioritaire
 ```{r }
-library(flexdashboard)
 REP_selected <- renderText({ 
     as.character(data_simul_college$ep[data_simul_college$nom_norme==unique(input$etab_id)][1])
   })
@@ -254,10 +256,6 @@ Row
 
 ### Comparaison IPS académie
 ```{r }
-library(dplyr)
-library(ggplot2)
-library(scales)
-
 ips_distrib <- function(data, point,periode) {
     
     acad_etab <- data$acad[data$nom_norme == point][1]
@@ -360,7 +358,6 @@ Cartographie {data-icon="fa-map-o"}
 
 ### Carte des collèges
 ```{r }
-library(leaflet)
 leaflet() %>% 
   addProviderTiles("Esri.WorldImagery", group = "Satellite",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>% 
   addProviderTiles("Esri.WorldStreetMap", group = "Réseaux de transport",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>%
@@ -378,8 +375,6 @@ selectInput('var_id', label = NULL, choices = c("Effectif","Note au brevet","Ind
 ```
 
 ```{r }
-library(plotly)
-
 # plot_dynamique <- function(data, etab, variable) {
 #   
 #   data[,variable] <- as.numeric(data[,variable])
@@ -445,7 +440,6 @@ Données brutes {data-icon="fa-table"}
 =======================================================================
 
 ```{r }
-library(DT)
 datatable(data_simul_college[,c("nom_norme","annee","ep","effectif_1er_cycle","pcs_tres_favorisee","pcs_favorisee","pcs_moyenne","pcs_defavorisee","ips_total","taux_boursiers","etp_enseignants","ens_inf_35_ans","anc_ens_inf2","anc_ens_sup8","esurs_1er_cycle","taux_reussite_dnb","note_ecrit_dnb")],
           colnames = c('Etablissement', 'Année', 'Educ. Prioritaire', 'Effectif', "% PCS très favo.","% PCS favo","% PCS moyennes","% PCS defavorisées","IPS moyen","% Boursiers","Nb. ETP enseignants","% enseign. -35ans","% ancienneté inf. 2 ans","% ancienneté sup. 8 ans","E/S moyen","% réussite DNB","Note moyenne DNB"),rownames= FALSE)
 ```
