@@ -49,6 +49,11 @@ iris_shp <- st_read("data/shp/contours_iris_wgs84.shp",
                     crs = 4326, stringsAsFactors = FALSE) 
 
 # Préparation des données pour l'appli Shiny
+acad_shp <- acad_shp %>%
+  mutate(name = str_split(.$name, 
+                                 "Académie\\sd\'?e?\\s?l?a?\\s?", simplify = T)[,2]) %>%
+  filter(name %in% unique(data_simul_college$acad))
+
 dep_shp <- dep_shp  %>%
   select(-nuts3, -wikipedia) %>%
   filter(code_insee %in% unique(data_simul_college$dep))
@@ -74,12 +79,14 @@ communes <- communes %>%
   arrange(dep_nom, nom_commune)
 
 data_simul_college <- data_simul_college %>%
+  mutate(acad = str_replace_all(acad, c("Ã©" = "é", "Ã§" = "ç"))) %>%
   left_join(communes, by = c("commune" = "insee_comm")) %>%
   select(-dep_num) %>%
   arrange(commune, nom_norme)
 
 iris_shp <- iris_shp %>%
-  filter(INSEE_COM %in% unique(data_simul_college$commune))
+  filter(INSEE_COM %in% unique(data_simul_college$commune)) %>%
+  mutate(dep_num = str_sub(INSEE_COM, 1, 2))
 
 ```
 
@@ -470,27 +477,32 @@ greenLeafIcon_rep_plus<- makeIcon(
   iconAnchorX = 0, iconAnchorY = 0
 )
 
-leaflet(elementId = "carto_etab") %>% #####
+output$carto_etab <- renderLeaflet(
+  leaflet() %>% #####
   setView(lat = 46.7, lng = 2.56, zoom = 6) %>%
         addProviderTiles("Esri.WorldStreetMap", group = "Réseaux de transport",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE"))
+)
 
-observe({
+leafletOutput("carto_etab")
+
+observeEvent(input$acad_id, {
+  
+acad <- input$acad_id
     
-data_simul_college_sub_carte <- data_simul_college %>% filter(acad == input$acad_id)
-
-filo_sub_carte <- filo %>% filter(IRIS %in% unique(data_simul_college$IRIS))
+data_simul_college_sub_carte <- data_simul_college %>% filter(acad == acad)
 
 dep_shp_sub_carte <- dep_shp %>% filter(code_insee %in% unique(data_simul_college$dep))
 
-iris_shp_sub_carte <- iris_shp %>% filter(CODE_IRIS %in% filo_sub_carte$CODE_IRIS)
+iris_shp_sub_carte <- iris_shp %>% filter(dep_num %in% dep_shp_sub_carte$code_insee)
 
-acad_shp_bbox <- acad_shp %>%
-  filter(str_detect(.$name, input$acad_id)) %>%
-  st_bbox()
-  
-leafletProxy("carto_etab") %>%
-  map.fitBounds(acad_shp_bbox$xmin, acad_shp_bbox$ymin,
-                acad_shp_bbox$xmax, acad_shp_bbox$ymax)
+filo_sub_carte <- filo %>% filter(IRIS %in% iris_shp_sub_carte$IRIS)
+
+acad_shp_bbox <- as.vector(st_bbox(acad_shp$geometry[acad_shp$name == acad]))
+
+carto_etab_proxy <- leafletProxy(mapId = "carto_etab", session = session) 
+carto_etab_proxy %>%
+  fitBounds(acad_shp_bbox[1], acad_shp_bbox[2],
+                acad_shp_bbox[3], acad_shp_bbox[4])
   })
 
   #     addProviderTiles("Esri.WorldImagery", group = "Satellite",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>%
