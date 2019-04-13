@@ -56,18 +56,27 @@ dep_shp <- dep_shp  %>%
 dep <- dep_shp %>%
   st_set_geometry(NULL) %>%
   mutate(nom = parse_character(nom, 
-                               locale = locale(encoding = guess_encoding(nom)$encoding)))
+                               locale = locale(encoding = guess_encoding(nom)$encoding))) %>%
+  arrange(nom)
+
+corresp_acad_dep <- unique(data_simul_college[,c("acad", "dep")]) %>%
+  mutate(acad = str_replace_all(acad, c("Ã©" = "é", "Ã§" = "ç"))) %>%
+  left_join(dep, by = c("dep" = "code_insee")) %>%
+  rename(nom_dep = nom) %>%
+  arrange(acad, nom_dep)
 
 communes <- communes %>%
   rename(nom_commune = nom_commun) %>%
   filter(insee_comm %in% unique(data_simul_college$commune)) %>%
   mutate(dep_num = str_sub(insee_comm, 1, 2)) %>%
   left_join(dep, by = c("dep_num" = "code_insee")) %>%
-  rename(dep_nom = nom)
+  rename(dep_nom = nom) %>%
+  arrange(dep_nom, nom_commune)
 
 data_simul_college <- data_simul_college %>%
   left_join(communes, by = c("commune" = "insee_comm")) %>%
-  select(-dep_num)
+  select(-dep_num) %>%
+  arrange(commune, nom_norme)
 
 iris_shp <- iris_shp %>%
   filter(INSEE_COM %in% unique(data_simul_college$commune))
@@ -142,31 +151,43 @@ selectInput('year_id', label = NULL, choices = unique(data_simul_college$annee))
 Localisation
 ------------------------------------------------------------------
 ```{r }
+selectInput('acad_id', label = 'Académie', choices = unique(corresp_acad_dep$acad),
+            selected = NULL, multiple = FALSE)
 selectInput('dep_id', label = 'Département', choices = dep$nom,
             selected = NULL, multiple = FALSE)
 selectInput('comm_id', label = 'Commune',
             choices = unique(communes$nom_commune),
             selected = NULL, multiple = FALSE)
-observe({
-  noms_communes_sub <- communes$nom_commune[communes$dep_nom == input$dep_id]
-
-  updateSelectInput(session, inputId = 'comm_id', label = 'Commune',
-                    choices = noms_communes_sub,
-                    selected = NULL)
-})
 ```
 
 Etablissement 
 ------------------------------------------------------------------
 ```{r }
 # selectInput('sect_id', label = "Secteur", choices = unique(data_simul_college$s[data_simul_college$acad=="Caen"]))
-selectInput('etab_id', label = "Nom de l'établissement",
+selectInput('etab_id', label = "Établissement",
             choices = unique(data_simul_college$nom_norme))
-observe({
-  etab_sub <- data_simul_college$nom_norme[data_simul_college$nom_commune == input$comm_id]
+```
 
-  updateSelectInput(session, inputId = 'etab_id', label = 'Commune',
-                    choices = etab_sub[!is.na(etab_sub)],
+```{r }
+# Hiérarchie des menus sur la sidebar
+observe({
+  noms_dep_sub <- corresp_acad_dep$nom_dep[corresp_acad_dep$acad == input$acad_id]
+  updateSelectInput(session, inputId = 'dep_id', label = 'Département',
+                    choices = noms_dep_sub[!is.na(noms_dep_sub)],
+                    selected = NULL)
+})
+  
+observe({
+  noms_communes_sub <- communes$nom_commune[communes$dep_nom == input$dep_id]
+  updateSelectInput(session, inputId = 'comm_id', label = 'Commune',
+                    choices = noms_communes_sub[!is.na(noms_communes_sub)],
+                    selected = NULL)
+})
+  
+observe({
+  noms_etab_sub <- data_simul_college$nom_norme[data_simul_college$nom_commune == input$comm_id]
+  updateSelectInput(session, inputId = 'etab_id', label = 'Établissement',
+                    choices = noms_etab_sub[!is.na(noms_etab_sub)],
                     selected = NULL)
 })
 ```
