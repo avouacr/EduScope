@@ -13,7 +13,7 @@ output:
 runtime: shiny
 ---
 
-```{r, echo=FALSE}
+```{r, include = FALSE}
 # Chargement des packages (et installation si nécessaire)
 check_packages <-function (...) {
     libs<-unlist(list(...))
@@ -147,7 +147,7 @@ Row {data-height=10}
 ------------------------------------------------------------------
 &nbsp;&nbsp;
 
-```{r}
+```{r, include = FALSE}
 renderText({ 
 unique(data_simul_college$commune[data_simul_college$nom_norme == input$etab_id])
   })
@@ -254,7 +254,7 @@ Row
 
 
 
-### Comparaison IPS académie
+### Comparaison de l'IPS avec les autres établissements de l'académie
 ```{r }
 ips_distrib <- function(data, point,periode) {
     
@@ -303,7 +303,7 @@ ips_distrib <- function(data, point,periode) {
 
 ```
 
-### Comparaison de la moyenne aux épreuves du DNB dans l'académie
+### Comparaison de la moyenne aux épreuves du DNB avec les autres établissements de l'académie
 ```{r }
 
 brevet_distrib <- function(data, point,periode) {
