@@ -148,6 +148,8 @@ background: #5d6d7e !important;
   text-align: center;
   font-weight: bold;
 }
+
+
   
 </style>
 
@@ -648,8 +650,8 @@ Données brutes {data-icon="fa-table"}
 =======================================================================
 
 ```{r }
-datatable(data_simul_college[,c("nom_norme","annee","ep","effectif_1er_cycle","pcs_tres_favorisee","pcs_favorisee","pcs_moyenne","pcs_defavorisee","ips_total","taux_boursiers","etp_enseignants","ens_inf_35_ans","anc_ens_inf2","anc_ens_sup8","esurs_1er_cycle","taux_reussite_dnb","note_ecrit_dnb")],
-          colnames = c('Etablissement', 'Année', 'Educ. Prioritaire', 'Effectif', "% PCS très favo.","% PCS favo","% PCS moyennes","% PCS defavorisées","IPS moyen","% Boursiers","Nb. ETP enseignants","% enseign. -35ans","% ancienneté inf. 2 ans","% ancienneté sup. 8 ans","E/S moyen","% réussite DNB","Note moyenne DNB"),rownames= FALSE)
+datatable(data_simul_college[,c("nom_norme", "acad", "dep_nom", "nom_commune", "annee","ep","effectif_1er_cycle","pcs_tres_favorisee","pcs_favorisee","pcs_moyenne","pcs_defavorisee","ips_total","taux_boursiers","etp_enseignants","ens_inf_35_ans","anc_ens_inf2","anc_ens_sup8","esurs_1er_cycle","taux_reussite_dnb","note_ecrit_dnb")],
+          colnames = c('Etablissement', "Académie", "Département", "Commune", 'Année', 'Educ. Prioritaire', 'Effectif', "% PCS très favo.","% PCS favo","% PCS moyennes","% PCS defavorisées","IPS moyen","% Boursiers","Nb. ETP enseignants","% enseign. -35ans","% ancienneté inf. 2 ans","% ancienneté sup. 8 ans","E/S moyen","% réussite DNB","Note moyenne DNB"),rownames= FALSE)
 ```
 
 
@@ -657,16 +659,18 @@ datatable(data_simul_college[,c("nom_norme","annee","ep","effectif_1er_cycle","p
 Communiquez {data-icon="fa-comments"}
 =======================================================================
 
-Row 
+Row
 ------------------------------------------------------------------
 ```{r }
-textAreaInput("comm_etab", label="En tant que directeur de l'établissement, vous pouvez faire remonter des remarques sur votre établissement", value = "...",height=200,width=1000)
+textAreaInput("comm_etab", label="Souhaitez-vous faire signaler des informations particulières concernant votre établissement ?", value = "...",height=250,width=1000)
 ```
 
-Row {data-height=10}
+Row {data-height=5}
 ------------------------------------------------------------------
 ```{r }
+div(style = "padding: 0px 0px; margin-top:-5em",
 actionButton("buttone", "Envoyer",icon=icon("send"))
+)
 ```
 
 Row {data-height=10}
