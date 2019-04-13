@@ -25,7 +25,8 @@ check_packages <-function (...) {
     }
 }
 check_packages("flexdashboard", "dplyr", "readr", "ggplot2", "scales", "leaflet",
-               "plotly", "DT", "sf")
+               "plotly", "DT", "sf", "maptools", "RColorBrewer", "classInt",
+               "leaflet.extras")
 
 # Import des données
 data_simul_college <- read_delim("data/data_simul.csv", delim = "|",
@@ -33,14 +34,15 @@ data_simul_college <- read_delim("data/data_simul.csv", delim = "|",
 filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
 
 dep_shp <- st_read("data/shp/departements-20140306-5m.shp", 
-                    crs = 4326)
+                    crs = 4326, stringsAsFactors = FALSE)
 acad_shp <- st_read("data/shp/academies-20160209.shp", 
-                    crs = 4326)
+                    crs = 4326, stringsAsFactors = FALSE)
+
 if (!("CONTOURS-IRIS.shp" %in% dir("data/shp"))) {
-  unzip("data/shp/CONTOURS-IRIS.zip", exdir = "data/shp")
+  unzip("contours_iris_wgs84.zip", exdir = "data/shp")
 }
-iris_shp <- st_read("data/shp/CONTOURS-IRIS.shp", 
-                    crs = 2154) %>% st_transform(crs = 4326)
+iris_shp <- st_read("contours_iris_wgs84.zip", 
+                    crs = 4326, stringsAsFactors = FALSE)
 
 # Préparation des données pour l'appli Shiny
 
@@ -358,10 +360,127 @@ Cartographie {data-icon="fa-map-o"}
 
 ### Carte des collèges
 ```{r }
-leaflet() %>% 
-  addProviderTiles("Esri.WorldImagery", group = "Satellite",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>% 
-  addProviderTiles("Esri.WorldStreetMap", group = "Réseaux de transport",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>%
-addProviderTiles("Esri.WorldGrayCanvas", group = "Vierge",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE"))
+distr <- classIntervals(filo$DISP_MED14,
+                        4, style = "quantile")$brks
+colours <- brewer.pal(4, "YlOrRd")
+
+# greenLeafIcon <- makeIcon(
+#   iconUrl = "E:/CNESCO/Garde/Cartographie intéractive (Hugo)/Data/Picto_etab_public_violet.png",
+#   #iconUrl ="C:/Users/hbotton/Documents/test_camemb.jpg",
+#   #iconWidth = 30, iconHeight = 30,
+#   iconWidth =df_college_idf$effectif_1er_cycle[df_college_idf$secteur=="public"&df_college_idf$ep=="Hors EP"]/15,
+#   iconHeight =df_college_idf$effectif_1er_cycle[df_college_idf$secteur=="public"&df_college_idf$ep=="Hors EP"]/13,
+#   iconAnchorX = 0, iconAnchorY = 0
+# )
+# 
+# greenLeafIcon_prive <- makeIcon(
+#   iconUrl = "E:/CNESCO/Garde/Cartographie intéractive (Hugo)/Data/Picto_etab_prive.png",
+#   #iconWidth = 30, iconHeight = 30,
+#   iconWidth =df_college_idf$effectif_1er_cycle[df_college_idf$secteur=="privé sous contrat"]/15,
+#   iconHeight =df_college_idf$effectif_1er_cycle[df_college_idf$secteur=="privé sous contrat"]/13,
+#   iconAnchorX = 0, iconAnchorY = 0
+# )
+# 
+# greenLeafIcon_rep <- makeIcon(
+#   iconUrl = "E:/CNESCO/Garde/Cartographie intéractive (Hugo)/Data/Picto_etab_public_REP_rose.png",
+#   #iconUrl ="C:/Users/hbotton/Documents/test_camemb.jpg",
+#   #iconWidth = 30, iconHeight = 30,
+#   iconWidth =df_college_idf$effectif_1er_cycle[df_college_idf$secteur=="public"&df_college_idf$ep=="REP"]/15,
+#   iconHeight =df_college_idf$effectif_1er_cycle[df_college_idf$secteur=="public"&df_college_idf$ep=="REP"]/13,
+#   iconAnchorX = 0, iconAnchorY = 0
+# )
+# 
+# greenLeafIcon_rep_plus<- makeIcon(
+#   iconUrl = "E:/CNESCO/Garde/Cartographie intéractive (Hugo)/Data/Picto_etab_public_REP+_rouge.png",
+#   #iconUrl ="C:/Users/hbotton/Documents/test_camemb.jpg",
+#   #iconWidth = 30, iconHeight = 30,
+#   iconWidth =df_college_idf$effectif_1er_cycle[df_college_idf$secteur=="public"&df_college_idf$ep=="REP+"]/15,
+#   iconHeight =df_college_idf$effectif_1er_cycle[df_college_idf$secteur=="public"&df_college_idf$ep=="REP+"]/13,
+#   iconAnchorX = 0, iconAnchorY = 0
+# )
+
+leaflet() %>% #####
+      addProviderTiles("Esri.WorldImagery", group = "Satellite",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>% 
+        addProviderTiles("Esri.WorldStreetMap", group = "Réseaux de transport",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>%
+        addProviderTiles("Esri.WorldGrayCanvas", group = "Vierge",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE"))%>%
+        addPolygons(data = iris_shp[iris_shp$dep %in% data_simul_college$dep[data_simul_college$acad=="Toulouse"],], opacity = 0.4, 
+                    color = "#020202", 
+                    stroke = TRUE, weight = 1,group="Quartiers",
+                    label=iris_shp$popup_nom_comm[iris_shp$dep %in% data_simul_college$dep[data_simul_college$acad=="Toulouse"]],
+                    popup=iris_shp$popup_iris[iris_shp$dep %in% data_simul_college$dep[data_simul_college$acad=="Toulouse"]],
+                    fill = T, fillColor = iris_shp$color_d10[iris_shp$dep %in% data_simul_college$dep[data_simul_college$acad=="Toulouse"]], 
+                    fillOpacity = 0.5,highlight = highlightOptions(weight = 6, color = iris_shp$color_d10[iris_shp$dep %in% data_simul_college$dep[data_simul_college$acad=="Toulouse"]],bringToFront = TRUE)) %>%
+        
+        addLegend("bottomright", 
+                  colors = colours,label=leglabs(paste0(round(distr,0),"€"), over = "Plus de", under = "Moins de"),
+                  title= "Revenu médian par quartier", opacity = 0.6)%>%
+        addResetMapButton()%>%
+        addScaleBar(position ="bottomleft",options=scaleBarOptions(metric = TRUE, imperial = F))%>%
+        addSearchFeatures(targetGroups= c("Quartiers") ,
+                          options = searchFeaturesOptions(zoom=15, openPopup=TRUE, firstTipSubmit = TRUE, autoCollapse = TRUE, hideMarkerOnCollapse = TRUE ))%>% 
+        addLayersControl(baseGroups = c("Vierge", "Satellite","Réseaux de transport"),
+                         overlayGroups = c("Quartiers"),
+                         options = layersControlOptions(collapsed = T))%>%
+        addFullscreenControl(pseudoFullscreen = TRUE)%>%
+        addEasyButton(easyButton(
+          icon = "fa-crosshairs", title = "Localiez-moi",
+          onClick = JS("function(btn, map){ map.locate({setView: true}); }")))%>%
+        
+        # Collèges Publics Hors EP
+        addMarkers(data =data_simul_college[data_simul_college$annee=="2014" &data_simul_college$secteur=="public"&data_simul_college$ep=="Hors EP" & data_simul_college$acad=="Toulouse",], ~long, ~lat, 
+                   # icon =greenLeafIcon, 
+                   #radius = (data_simul_college$effectif_college[data_simul_college$Dénomination.principale=="COLLEGE"]/50),
+                   popup=data_simul_college$popup_coll[data_simul_college$annee=="2014" &data_simul_college$secteur=="public"&data_simul_college$ep=="Hors EP" & data_simul_college$acad=="Toulouse"],options=popupOptions(closeButton=T),
+                   #label=data_simul_college$Appellation.officiellle[data_simul_college$Dénomination.principale=="COLLEGE"&data_simul_college$REP=="Non"&data_simul_college$REPplus_OK=="Non"], group='Collèges publics',
+                   clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {    
+                                                                                                                                  var childCount = cluster.getChildCount();  
+                                                                                                                                  if (childCount < 100) {  
+                                                                                                                                  c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                  } else { 
+                                                                                                                                  c = 'rgba(255, 255, 255, 0.7);'  
+                                                                                                                                  }    
+                                                                                                                                  return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
+                                                                                                                                  
+    }"))
+  )%>%
+      
+      # Collèges Publics REP
+      
+      addMarkers(data =data_simul_college[data_simul_college$annee=="2014" &data_simul_college$secteur=="public"&data_simul_college$ep=="REP"  & data_simul_college$acad=="Toulouse",], ~long, ~lat, 
+                 # icon =greenLeafIcon_rep, 
+                 #radius = (data_simul_college$effectif_college[data_simul_college$Dénomination.principale=="COLLEGE"]/50),
+                popup=data_simul_college$popup_coll[data_simul_college$annee=="2014" &data_simul_college$secteur=="public"&data_simul_college$ep=="REP"  & data_simul_college$acad=="Toulouse"],options=popupOptions(closeButton=T),
+                 #label=data_simul_college$Appellation.officiellle[data_simul_college$Dénomination.principale=="COLLEGE"&data_simul_college$REP=="Non"&data_simul_college$REPplus_OK=="Non"], group='Collèges publics',
+                 clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {    
+                                                                                                                                var childCount = cluster.getChildCount();  
+                                                                                                                                if (childCount < 100) {  
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                } else { 
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'  
+                                                                                                                                }    
+                                                                                                                                return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
+                                                                                                                                
+    }"))
+  )%>%
+      
+      # Collèges Publics REP+
+      
+      addMarkers(data =data_simul_college[data_simul_college$annee=="2014" &data_simul_college$secteur=="public"&data_simul_college$ep=="REP+"  & data_simul_college$acad=="Toulouse",], ~long, ~lat, 
+                 # icon =greenLeafIcon_rep_plus, 
+                 #radius = (data_simul_college$effectif_college[data_simul_college$Dénomination.principale=="COLLEGE"]/50),
+                 popup=data_simul_college$popup_coll[data_simul_college$annee=="2014" &data_simul_college$secteur=="public"&data_simul_college$ep=="REP+"  & data_simul_college$acad=="Toulouse"],options=popupOptions(closeButton=T),
+                 #label=data_simul_college$Appellation.officiellle[data_simul_college$Dénomination.principale=="COLLEGE"&data_simul_college$REP=="Non"&data_simul_college$REPplus_OK=="Non"], group='Collèges publics',
+                 clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {    
+                                                                                                                                var childCount = cluster.getChildCount();  
+                                                                                                                                if (childCount < 100) {  
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                } else { 
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'  
+                                                                                                                                }    
+                                                                                                                                return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
+                                                                                                                                
+    }"))
+  )
 ```
 
 
