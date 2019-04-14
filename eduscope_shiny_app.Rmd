@@ -45,7 +45,6 @@ library(foreign)
 data_simul_college <- read_delim("data/data_simul.csv", delim = "|",
                                  locale = locale(encoding = "latin1"))
 
-# filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
 if (!("academies-20160209.shp" %in% dir("data/shp"))) {
 unzip("data/shp/academies_shp.zip", exdir = "data/shp")
 }
@@ -62,11 +61,13 @@ dep_shp <- st_read("data/shp/departements-20140306-5m.shp",
 
 communes <- read_delim("data/shp/communes_fr.csv", delim = "|") 
 
-# if (!("contours_iris_wgs84.shp" %in% dir("data/shp"))) {
-#   unzip("contours_iris_wgs84.zip", exdir = "data/shp")
-# }
-# iris_shp <- st_read("data/shp/contours_iris_wgs84.shp", 
-#                     crs = 4326, stringsAsFactors = FALSE) 
+if (!("contours_iris_wgs84.shp" %in% dir("data/shp"))) {
+  unzip("data/shp/contours_iris_wgs84.zip", exdir = "data/shp")
+}
+iris_shp <- st_read("data/shp/contours_iris_wgs84.shp",
+                    crs = 4326, stringsAsFactors = FALSE)
+
+filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
 
 # Préparation des données pour l'appli Shiny
 acad_shp <- acad_shp %>%
@@ -104,9 +105,19 @@ data_simul_college <- data_simul_college %>%
   select(-dep_num) %>%
   arrange(commune, nom_norme)
 
-# iris_shp <- iris_shp %>%
-#   filter(INSEE_COM %in% unique(data_simul_college$commune)) %>%
-#   mutate(dep_num = str_sub(INSEE_COM, 1, 2))
+iris_shp_filo <- iris_shp %>%
+  filter(INSEE_COM %in% unique(data_simul_college$commune)) %>%
+  mutate(dep_num = str_sub(INSEE_COM, 1, 2)) %>%
+  right_join(filo, by = c("CODE_IRIS" = "IRIS"))
+
+iris_shp_filo$popup_iris <- paste("<div class='leaflet-popup-scrolled' style='max-width:600px;min-width:300px;max-height:300px'>", 
+                          "<b><FONT size='5pt'>", iris_shp_filo$NOM_IRIS, "</FONT></b><br>",
+                          "<FONT size='3pt'>", iris_shp_filo$LIBCOM, "</FONT><br>",
+                          
+                          "<hr>",
+                          "<u>10% des ménages gagnent moins de</u><b>", iris_shp_filo$DISP_D114,"€","<br>",
+                          "<u>50% des ménages gagnent au moins :</u><b>", iris_shp_filo$DISP_MED14,"€","<br>",
+                          "<u>10% des ménages gagnent plus de</u><b>", iris_shp_filo$DISP_D914,"€","<br>")
 
 ```
 
@@ -460,10 +471,6 @@ Cartographie {data-icon="fa-map-o"}
 
 ### Carte des collèges
 ```{r }
-# distr <- classIntervals(filo$DISP_MED14,
-#                         4, style = "quantile")$brks
-# colours <- brewer.pal(4, "YlOrRd")
-
 pub_hors_ep <- data_simul_college %>% filter(secteur=="public" & ep=="Hors EP")
 pub_rep <- data_simul_college %>% filter(secteur=="public" & ep=="REP")
 pub_rep_plus <- data_simul_college %>% filter(secteur=="public" & ep=="REP+")
@@ -548,17 +555,20 @@ output$carto_etab <- renderLeaflet(
                                                                                                                                 return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
 
     }"))
-  )
+  ) 
 )
 
 leafletOutput("carto_etab")
 
-observeEvent(input$acad_id, {
-  
-acad <- input$acad_id
+# Zoom lors d'un changement de département
+
+observeEvent(input$dep_id, {
+
+dep_event <- input$dep_id
+dep_event_num <- dep$code_insee[dep$nom == dep_event]
     
 data_simul_college_sub_carte <- data_simul_college %>% 
-  filter(acad == acad, annee == 2014)
+  filter(dep == dep_event_num, annee == 2014)
 
 data_simul_college_sub_carte$popup_coll <- paste("<div class='leaflet-popup-scrolled' style='max-width:600px;min-width:300px;max-height:300px'>", 
                             "<b><FONT size='3pt'>", 
@@ -571,26 +581,35 @@ data_simul_college_sub_carte$popup_coll <- paste("<div class='leaflet-popup-scro
                             "<br>")
 
 
-dep_shp_sub_carte <- dep_shp %>% filter(code_insee %in% unique(data_simul_college$dep))
+dep_shp_sub_carte <- dep_shp %>% filter(code_insee == dep_event_num)
+dep_bbox <- as.vector(st_bbox(dep_shp_sub_carte))
 
-# iris_shp_sub_carte <- iris_shp %>% filter(dep_num %in% dep_shp_sub_carte$code_insee)
-# 
-# filo_sub_carte <- filo %>% filter(IRIS %in% iris_shp_sub_carte$IRIS)
+iris_filo_sub <- iris_shp_filo %>% filter(dep_num == dep_event_num)
 
-acad_shp_bbox <- as.vector(st_bbox(acad_shp$geometry[acad_shp$name == acad]))
+distr <- classIntervals(iris_filo_sub$DISP_MED14,
+                        4, style = "quantile")$brks
 
-carto_etab_proxy <- leafletProxy(mapId = "carto_etab", session = session) 
+colours <- brewer.pal(4, "YlOrRd")
+
+iris_filo_sub$color_d10 <- colours[(findInterval(iris_filo_sub$DISP_MED14,
+                                                  distr, all.inside = TRUE))]
+
+carto_etab_proxy <- leafletProxy(mapId = "carto_etab") 
 carto_etab_proxy %>%
-  fitBounds(acad_shp_bbox[1], acad_shp_bbox[2],
-                acad_shp_bbox[3], acad_shp_bbox[4])
-  # addPolygons(data = iris_shp_sub_carte, opacity = 0.4,
-  #                   color = "#020202",
-  #                   stroke = TRUE, weight = 1,group="Quartiers",
-  #                   # label=iris_shp_sub_carte$NOM_IRIS,
-  #                   # popup=iris_shp_sub_carte$popup_iris,
-  #                   fill = T, fillColor = iris_shp$color_d10,
-  #                   fillOpacity = 0.5,highlight = highlightOptions(weight = 6, color = iris_shp$color_d10,
-  #                                                                  bringToFront = TRUE)) 
+  fitBounds(dep_bbox[1], dep_bbox[2],
+                dep_bbox[3], dep_bbox[4]) %>%
+  clearShapes() %>%
+  addPolygons(data = iris_filo_sub, opacity = 0.4,
+                    color = "#020202",
+                    stroke = TRUE, weight = 1,group="Quartiers",
+                    label=iris_filo_sub$NOM_IRIS,
+                    popup=iris_filo_sub$popup_iris,
+                    fill = T, 
+                    fillColor = iris_filo_sub$color_d10,
+                    fillOpacity = 0.5,
+                    highlight = highlightOptions(weight = 6, color = iris_filo_sub$color_d10,
+                    bringToFront = TRUE)
+                    )
     })
 ```
 
