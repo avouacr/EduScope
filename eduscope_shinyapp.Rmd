@@ -14,7 +14,7 @@ runtime: shiny
 ---
 
 ```{r, include = FALSE}
-# Chargement des packages (et installation si nécessaire)
+# Chargement des packages (installation si nécessaire)
 library(flexdashboard)
 library(tidyverse)
 library(scales)
