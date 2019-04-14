@@ -32,21 +32,25 @@ library(foreign)
 data_simul_college <- read_delim("data/data_simul.csv", delim = "|",
                                  locale = locale(encoding = "latin1"))
 
-filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
+# filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
+
+unzip("academies_shp.zip", exdir = "data/shp")
 
 acad_shp <- st_read("data/shp/academies-20160209.shp", 
                     crs = 4326, stringsAsFactors = FALSE)
+
+unzip("departements_shp.zip", exdir = "data/shp")
 
 dep_shp <- st_read("data/shp/departements-20140306-5m.shp", 
                     crs = 4326, stringsAsFactors = FALSE)
 
 communes <- read_delim("data/shp/communes_fr.csv", delim = "|") 
 
-if (!("contours_iris_wgs84.shp" %in% dir("data/shp"))) {
-  unzip("contours_iris_wgs84.zip", exdir = "data/shp")
-}
-iris_shp <- st_read("data/shp/contours_iris_wgs84.shp", 
-                    crs = 4326, stringsAsFactors = FALSE) 
+# if (!("contours_iris_wgs84.shp" %in% dir("data/shp"))) {
+#   unzip("contours_iris_wgs84.zip", exdir = "data/shp")
+# }
+# iris_shp <- st_read("data/shp/contours_iris_wgs84.shp", 
+#                     crs = 4326, stringsAsFactors = FALSE) 
 
 # Préparation des données pour l'appli Shiny
 acad_shp <- acad_shp %>%
@@ -84,9 +88,9 @@ data_simul_college <- data_simul_college %>%
   select(-dep_num) %>%
   arrange(commune, nom_norme)
 
-iris_shp <- iris_shp %>%
-  filter(INSEE_COM %in% unique(data_simul_college$commune)) %>%
-  mutate(dep_num = str_sub(INSEE_COM, 1, 2))
+# iris_shp <- iris_shp %>%
+#   filter(INSEE_COM %in% unique(data_simul_college$commune)) %>%
+#   mutate(dep_num = str_sub(INSEE_COM, 1, 2))
 
 ```
 
@@ -440,9 +444,9 @@ Cartographie {data-icon="fa-map-o"}
 
 ### Carte des collèges
 ```{r }
-distr <- classIntervals(filo$DISP_MED14,
-                        4, style = "quantile")$brks
-colours <- brewer.pal(4, "YlOrRd")
+# distr <- classIntervals(filo$DISP_MED14,
+#                         4, style = "quantile")$brks
+# colours <- brewer.pal(4, "YlOrRd")
 
 pub_hors_ep <- data_simul_college %>% filter(secteur=="public" & ep=="Hors EP")
 pub_rep <- data_simul_college %>% filter(secteur=="public" & ep=="REP")
