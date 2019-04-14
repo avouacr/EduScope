@@ -599,6 +599,9 @@ carto_etab_proxy %>%
   fitBounds(dep_bbox[1], dep_bbox[2],
                 dep_bbox[3], dep_bbox[4]) %>%
   clearShapes() %>%
+  clearControls() %>%
+  addPolygons(data = dep_shp_sub_carte, stroke = TRUE, color = "black",
+              fillOpacity = 0) %>%
   addPolygons(data = iris_filo_sub, opacity = 0.4,
                     color = "#020202",
                     stroke = TRUE, weight = 1,group="Quartiers",
@@ -609,7 +612,10 @@ carto_etab_proxy %>%
                     fillOpacity = 0.5,
                     highlight = highlightOptions(weight = 6, color = iris_filo_sub$color_d10,
                     bringToFront = TRUE)
-                    )
+                    ) %>%
+  addLegend("bottomright", 
+                  colors = colours,label=leglabs(paste0(round(distr,0),"€"), over = "Plus de", under = "Moins de"),
+                  title= "Revenu médian par quartier", opacity = 0.6)
     })
 ```
 
