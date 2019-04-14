@@ -33,13 +33,16 @@ data_simul_college <- read_delim("data/data_simul.csv", delim = "|",
                                  locale = locale(encoding = "latin1"))
 
 # filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
-
+if (!("academies-20160209.shp" %in% dir("data/shp"))) {
 unzip("data/shp/academies_shp.zip", exdir = "data/shp")
+}
 
 acad_shp <- st_read("data/shp/academies-20160209.shp", 
                     crs = 4326, stringsAsFactors = FALSE)
 
+if (!("departements-20140306-5m.shp" %in% dir("data/shp"))) {
 unzip("data/shp/departements_shp.zip", exdir = "data/shp")
+}
 
 dep_shp <- st_read("data/shp/departements-20140306-5m.shp", 
                     crs = 4326, stringsAsFactors = FALSE)

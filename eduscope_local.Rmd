@@ -32,21 +32,28 @@ check_packages("flexdashboard", "dplyr", "readr", "ggplot2", "scales", "leaflet"
 data_simul_college <- read_delim("data/data_simul.csv", delim = "|",
                                  locale = locale(encoding = "latin1"))
 
-filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
+# filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
+if (!("academies-20160209.shp" %in% dir("data/shp"))) {
+unzip("data/shp/academies_shp.zip", exdir = "data/shp")
+}
 
 acad_shp <- st_read("data/shp/academies-20160209.shp", 
                     crs = 4326, stringsAsFactors = FALSE)
+
+if (!("departements-20140306-5m.shp" %in% dir("data/shp"))) {
+unzip("data/shp/departements_shp.zip", exdir = "data/shp")
+}
 
 dep_shp <- st_read("data/shp/departements-20140306-5m.shp", 
                     crs = 4326, stringsAsFactors = FALSE)
 
 communes <- read_delim("data/shp/communes_fr.csv", delim = "|") 
 
-if (!("contours_iris_wgs84.shp" %in% dir("data/shp"))) {
-  unzip("contours_iris_wgs84.zip", exdir = "data/shp")
-}
-iris_shp <- st_read("data/shp/contours_iris_wgs84.shp", 
-                    crs = 4326, stringsAsFactors = FALSE) 
+# if (!("contours_iris_wgs84.shp" %in% dir("data/shp"))) {
+#   unzip("contours_iris_wgs84.zip", exdir = "data/shp")
+# }
+# iris_shp <- st_read("data/shp/contours_iris_wgs84.shp", 
+#                     crs = 4326, stringsAsFactors = FALSE) 
 
 # Préparation des données pour l'appli Shiny
 acad_shp <- acad_shp %>%
@@ -334,7 +341,7 @@ Row
 
 
 
-### Comparaison de l'IPS avec les autres établissements de l'académie
+### IPS : positionnement du collège par rapport aux autres établissements de l'académie
 ```{r }
 ips_distrib <- function(data, point,periode) {
     
@@ -384,7 +391,7 @@ ips_distrib <- function(data, point,periode) {
 
 ```
 
-### Comparaison de la moyenne aux épreuves du DNB avec les autres établissements de l'académie
+### Moyenne aux épreuves du DNB : positionnement du collège par rapport aux autres établissements de l'académie
 ```{r }
 
 brevet_distrib <- function(data, point,periode) {
