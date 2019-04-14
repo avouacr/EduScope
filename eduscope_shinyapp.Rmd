@@ -1,0 +1,707 @@
+---
+title: "EduScope"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    #social: menu
+    #source_code: embed
+    theme: spacelab
+    #vertical_layout: scroll
+    #sandstone
+    #spacelab
+    #logo: logo_ajust(1).png
+runtime: shiny
+---
+
+```{r, include = FALSE}
+# Chargement des packages (et installation si nécessaire)
+library(flexdashboard)
+library(tidyverse)
+library(scales)
+library(leaflet)
+library(plotly)
+library(DT)
+library(sf)
+library(maptools)
+library(RColorBrewer)
+library(classInt)
+library(leaflet.extras)
+library(foreign)
+
+# Import des données
+data_simul_college <- read_delim("data/data_simul.csv", delim = "|",
+                                 locale = locale(encoding = "latin1"))
+
+filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
+
+acad_shp <- st_read("data/shp/academies-20160209.shp", 
+                    crs = 4326, stringsAsFactors = FALSE)
+
+dep_shp <- st_read("data/shp/departements-20140306-5m.shp", 
+                    crs = 4326, stringsAsFactors = FALSE)
+
+communes <- read_delim("data/shp/communes_fr.csv", delim = "|") 
+
+if (!("contours_iris_wgs84.shp" %in% dir("data/shp"))) {
+  unzip("contours_iris_wgs84.zip", exdir = "data/shp")
+}
+iris_shp <- st_read("data/shp/contours_iris_wgs84.shp", 
+                    crs = 4326, stringsAsFactors = FALSE) 
+
+# Préparation des données pour l'appli Shiny
+acad_shp <- acad_shp %>%
+  mutate(name = str_split(.$name, 
+                                 "Académie\\sd\'?e?\\s?l?a?\\s?", simplify = T)[,2]) %>%
+  filter(name %in% unique(data_simul_college$acad))
+
+dep_shp <- dep_shp  %>%
+  select(-nuts3, -wikipedia) %>%
+  filter(code_insee %in% unique(data_simul_college$dep))
+
+dep <- dep_shp %>%
+  st_set_geometry(NULL) %>%
+  mutate(nom = parse_character(nom, 
+                               locale = locale(encoding = guess_encoding(nom)$encoding))) %>%
+  arrange(nom)
+
+corresp_acad_dep <- unique(data_simul_college[,c("acad", "dep")]) %>%
+  mutate(acad = str_replace_all(acad, c("Ã©" = "é", "Ã§" = "ç"))) %>%
+  left_join(dep, by = c("dep" = "code_insee")) %>%
+  rename(nom_dep = nom) %>%
+  arrange(acad, nom_dep)
+
+communes <- communes %>%
+  rename(nom_commune = nom_commun) %>%
+  filter(insee_comm %in% unique(data_simul_college$commune)) %>%
+  mutate(dep_num = str_sub(insee_comm, 1, 2)) %>%
+  left_join(dep, by = c("dep_num" = "code_insee")) %>%
+  rename(dep_nom = nom) %>%
+  arrange(dep_nom, nom_commune)
+
+data_simul_college <- data_simul_college %>%
+  mutate(acad = str_replace_all(acad, c("Ã©" = "é", "Ã§" = "ç"))) %>%
+  left_join(communes, by = c("commune" = "insee_comm")) %>%
+  select(-dep_num) %>%
+  arrange(commune, nom_norme)
+
+iris_shp <- iris_shp %>%
+  filter(INSEE_COM %in% unique(data_simul_college$commune)) %>%
+  mutate(dep_num = str_sub(INSEE_COM, 1, 2))
+
+```
+
+
+<style type="text/css">
+
+body{ /* NIVEAU DE ZOOM DE l'APPLICATION */
+      /* A MODIFIER SI LES ELEMENTS SE SUPERPOSENT */
+      zoom: 0.8;
+
+  /* Titre des onglets  */
+      font-size: 17px;
+      font-family: Century Gothic, sans-serif;
+
+  }
+
+.navbar-brand{ /* Titre de l'appli  */
+      font-size: 30px;
+font-family: Century Gothic, sans-serif;
+}
+
+.chart-title{ /* Titre des boxes  */
+      font-size: 20px;
+      color: DarkRed;
+  }
+  
+  .control-label{ 
+      color: black !important;
+  }
+  
+  /* Barre de navigation  */
+
+.navbar {
+  background :  #283747  !important;
+  border :black !important;
+}
+  
+  .sidebar{
+background: #5d6d7e !important;
+}
+
+  h2{ /* Titres  */
+      font-size: 19px;
+      font-family: Century Gothic, sans-serif;
+      color: #f2f3f4 ;
+      font-weight: bold;
+  }
+  
+  .control-label{ /* Titres  */
+      font-size: 15px;
+      font-family: Century Gothic, sans-serif;
+      color: #f2f3f4 ;
+  }
+  
+ .college {
+  color: #95a5a6 ; 
+  font-size: 58px; 
+  font-family: 'Signika', sans-serif;
+  text-align: center;
+  font-weight: bold;
+}
+
+
+  
+</style>
+
+Sidebar {.sidebar}
+=======================================================================
+
+Année
+------------------------------------------------------------------
+```{r }
+selectInput('year_id', label = NULL, choices = unique(data_simul_college$annee))
+```
+
+Localisation
+------------------------------------------------------------------
+```{r }
+selectInput('acad_id', label = 'Académie', choices = unique(corresp_acad_dep$acad),
+            selected = NULL, multiple = FALSE)
+selectInput('dep_id', label = 'Département', choices = dep$nom,
+            selected = NULL, multiple = FALSE)
+selectInput('comm_id', label = 'Commune',
+            choices = unique(communes$nom_commune),
+            selected = NULL, multiple = FALSE)
+```
+
+Etablissement 
+------------------------------------------------------------------
+```{r }
+# selectInput('sect_id', label = "Secteur", choices = unique(data_simul_college$s[data_simul_college$acad=="Caen"]))
+selectInput('etab_id', label = "Établissement",
+            choices = unique(data_simul_college$nom_norme))
+```
+
+```{r }
+# Hiérarchie des menus sur la sidebar
+observe({
+  noms_dep_sub <- corresp_acad_dep$nom_dep[corresp_acad_dep$acad == input$acad_id]
+  updateSelectInput(session, inputId = 'dep_id', label = 'Département',
+                    choices = noms_dep_sub[!is.na(noms_dep_sub)],
+                    selected = NULL)
+})
+  
+observe({
+  noms_communes_sub <- communes$nom_commune[communes$dep_nom == input$dep_id]
+  updateSelectInput(session, inputId = 'comm_id', label = 'Commune',
+                    choices = noms_communes_sub[!is.na(noms_communes_sub)],
+                    selected = NULL)
+})
+  
+observe({
+  noms_etab_sub <- data_simul_college$nom_norme[data_simul_college$nom_commune == input$comm_id]
+  updateSelectInput(session, inputId = 'etab_id', label = 'Établissement',
+                    choices = noms_etab_sub[!is.na(noms_etab_sub)],
+                    selected = NULL)
+})
+```
+
+
+Présentation de l'établissement {data-icon="fa-university"}
+=======================================================================
+
+Row {data-height=10}
+------------------------------------------------------------------
+
+Row {.college data-height=60}
+------------------------------------------------------------------
+&nbsp;&nbsp;
+
+```{r}
+renderText({ 
+input$etab_id
+  })
+```
+
+Row {data-height=10}
+------------------------------------------------------------------
+&nbsp;&nbsp;
+
+```{r, include = FALSE}
+renderText({ 
+unique(data_simul_college$commune[data_simul_college$nom_norme == input$etab_id])
+  })
+```
+
+Row {data-height=20}
+------------------------------------------------------------------
+
+
+Row 
+------------------------------------------------------------------
+
+### Education prioritaire
+```{r }
+REP_selected <- renderText({ 
+    as.character(data_simul_college$ep[data_simul_college$nom_norme==unique(input$etab_id)][1])
+  })
+
+renderValueBox({
+  valueBox(
+    value = REP_selected,
+        color = "primary")
+})
+```
+
+### Secteur
+```{r }
+secteur_selected <- renderText({ 
+    paste0("P",substr(data_simul_college$secteur[data_simul_college$nom_norme==unique(input$etab_id)][1], 2,nchar(data_simul_college$secteur[data_simul_college$nom_norme==unique(input$etab_id)][1])))
+  })
+
+renderValueBox({
+  valueBox(
+    value = secteur_selected,
+        color = "primary")
+})
+```
+
+### Nombre d'élèves
+```{r }
+effectif_selected <- renderText({ 
+    data_simul_college$effectif_1er_cycle[data_simul_college$nom_norme==unique(input$etab_id)][1]
+  })
+
+renderValueBox({
+  valueBox(
+    value = effectif_selected,
+        color = "primary")
+})
+```
+
+Row {.college data-height=10}
+------------------------------------------------------------------
+
+
+Row 
+------------------------------------------------------------------
+
+### Indice de position sociale
+```{r }
+renderValueBox({
+  valueBox(
+    value = data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id & data_simul_college$annee==input$year_id][1],
+    icon = "fa-balance-scale",
+        #color = "orange")
+        color = if (as.numeric(data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$ips_total[data_simul_college$annee==input$year_id], 0.75)) "#e76f51" else 
+          if (as.numeric(data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$ips_total[data_simul_college$annee==input$year_id], 0.5)) "#e9c46a" else 
+             if (as.numeric(data_simul_college$ips_total[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$ips_total[data_simul_college$annee==input$year_id], 0.25)) "#e9c46a" else
+               "#fadf63")
+})
+```
+
+### Nombre d'élèves par structure
+```{r }
+renderValueBox({
+  valueBox(
+    value = data_simul_college$esurs_1er_cycle[data_simul_college$nom_norme==input$etab_id & data_simul_college$annee==input$year_id][1],
+    icon = "fa-users",
+        #color = "orange")
+        color = if (as.numeric(data_simul_college$esurs_1er_cycle[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$esurs_1er_cycle[data_simul_college$annee==input$year_id], 0.75)) "#e76f51" else 
+          if (as.numeric(data_simul_college$esurs_1er_cycle[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$esurs_1er_cycle[data_simul_college$annee==input$year_id], 0.5)) "#e9c46a" else 
+             if (as.numeric(data_simul_college$esurs_1er_cycle[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$esurs_1er_cycle[data_simul_college$annee==input$year_id], 0.25)) "#e9c46a" else
+               "#fadf63")
+})
+```
+
+### Note à l'écrit du brevet
+```{r }
+renderValueBox({
+  valueBox(
+    value = data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id & data_simul_college$annee==input$year_id][1],
+    icon = "fa-graduation-cap",
+        #color = "orange")
+        color = if (as.numeric(data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$note_ecrit_dnb[data_simul_college$annee==input$year_id], 0.75)) "#e76f51" else 
+          if (as.numeric(data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$note_ecrit_dnb[data_simul_college$annee==input$year_id], 0.5)) "#e9c46a" else 
+             if (as.numeric(data_simul_college$note_ecrit_dnb[data_simul_college$nom_norme==input$etab_id &  data_simul_college$annee==input$year_id][1]) >= quantile(data_simul_college$note_ecrit_dnb[data_simul_college$annee==input$year_id], 0.25)) "#e9c46a" else
+               "#fadf63")
+})
+```
+
+
+Row 
+------------------------------------------------------------------
+
+
+
+### Comparaison de l'IPS avec les autres établissements de l'académie
+```{r }
+ips_distrib <- function(data, point,periode) {
+    
+    acad_etab <- data$acad[data$nom_norme == point][1]
+    
+    df_ips <- data %>%
+      filter(annee == periode,
+             acad == acad_etab) %>%
+      select(etab, nom_norme, ips_total) %>%
+      mutate(highlight = ifelse(nom_norme == point, 1, 0)) %>%
+      distinct(nom_norme, .keep_all= TRUE)
+    
+    df_ips$highlight[df_ips$highlight == 1] <- c(1, rep(0, 
+                                                        length(df_ips$highlight[df_ips$highlight == 1]) -1))
+    
+
+  min_ips <- min(data$ips_total, na.rm = T)
+  max_ips <- max(data$ips_total, na.rm = T)
+  
+  df_ips <- df_ips %>%
+    mutate(nom_norme = reorder(nom_norme, ips_total))
+  
+  res_plot <- ggplot(data = df_ips, aes(x = nom_norme, 
+                                        y = ips_total,
+                                        fill = ips_total)) +
+    geom_bar(stat = "identity") +
+    scale_y_continuous(limits = c(min_ips, max_ips), oob = rescale_none) +
+    scale_fill_gradient(high = "red", 
+                        low = "yellow") +
+    geom_vline(xintercept = which(levels(df_ips$nom_norme) == point), 
+               color = "#3a506b", size = 1.5) +
+    # labs(y = "Indice de position sociale moyen") +
+    theme(axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 12),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white"),
+          panel.grid.major.y = element_line(color = "grey"))
+  
+  return(res_plot)
+}
+
+ renderPlot({
+      ips_distrib(data_simul_college, input$etab_id,input$year_id)
+    })
+
+```
+
+### Comparaison de la moyenne aux épreuves du DNB avec les autres établissements de l'académie
+```{r }
+
+brevet_distrib <- function(data, point,periode) {
+    
+    acad_etab <- data$acad[data$nom_norme == point][1]
+    
+    df_brevet <- data %>%
+      filter(annee == periode,
+             acad == acad_etab) %>%
+      select(etab, nom_norme, note_ecrit_dnb) %>%
+      mutate(highlight = ifelse(nom_norme == point, 1, 0)) %>%
+      distinct(nom_norme, .keep_all= TRUE)
+    
+    df_brevet$highlight[df_brevet$highlight == 1] <- c(1, rep(0, 
+                                                        length(df_brevet$highlight[df_brevet$highlight == 1]) -1))
+    
+
+  min_brevet <- min(data$note_ecrit_dnb, na.rm = T)
+  max_brevet <- max(data$note_ecrit_dnb, na.rm = T)
+  
+  df_brevet <- df_brevet %>%
+    mutate(nom_norme = reorder(nom_norme, note_ecrit_dnb))
+  
+  res_plot <- ggplot(data = df_brevet, aes(x = nom_norme, 
+                                        y = note_ecrit_dnb,
+                                        fill = note_ecrit_dnb)) +
+    geom_bar(stat = "identity") +
+    scale_y_continuous(limits = c(min_brevet, max_brevet), oob = rescale_none) +
+    scale_fill_gradient(high = "red", 
+                        low = "yellow") +
+    geom_vline(xintercept = which(levels(df_brevet$nom_norme) == point), 
+               color = "#3a506b", size = 1.5) +
+    # labs(y = "Moyenne aux épreuves finales du brevet") +
+    theme(axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 12),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          legend.position = "none",
+          panel.background = element_rect(fill = "white"),
+          panel.grid.major.y = element_line(color = "grey"))
+  
+  return(res_plot)
+}
+
+ renderPlot({
+      brevet_distrib(data_simul_college, input$etab_id,input$year_id)
+    })
+
+```
+
+Cartographie {data-icon="fa-map-o"}
+=======================================================================
+
+### Carte des collèges
+```{r }
+distr <- classIntervals(filo$DISP_MED14,
+                        4, style = "quantile")$brks
+colours <- brewer.pal(4, "YlOrRd")
+
+pub_hors_ep <- data_simul_college %>% filter(secteur=="public" & ep=="Hors EP")
+pub_rep <- data_simul_college %>% filter(secteur=="public" & ep=="REP")
+pub_rep_plus <- data_simul_college %>% filter(secteur=="public" & ep=="REP+")
+
+greenLeafIcon <- makeIcon(
+  iconUrl = "data/picto_carte/Picto_etab_public_violet.png",
+  #iconUrl ="C:/Users/hbotton/Documents/test_camemb.jpg",
+  #iconWidth = 30, iconHeight = 30,
+  iconWidth = pub_hors_ep$effectif_1er_cycle/15,
+  iconHeight = pub_hors_ep$effectif_1er_cycle/13,
+  iconAnchorX = 0, iconAnchorY = 0
+)
+
+greenLeafIcon_rep <- makeIcon(
+  iconUrl = "data/picto_carte/Picto_etab_public_REP_rose.png",
+  #iconUrl ="C:/Users/hbotton/Documents/test_camemb.jpg",
+  #iconWidth = 30, iconHeight = 30,
+  iconWidth = pub_rep$effectif_1er_cycle/15,
+  iconHeight = pub_rep$effectif_1er_cycle/13,
+  iconAnchorX = 0, iconAnchorY = 0
+)
+
+greenLeafIcon_rep_plus<- makeIcon(
+  iconUrl = "data/picto_carte/Picto_etab_public_REP+_rouge.png",
+  #iconUrl ="C:/Users/hbotton/Documents/test_camemb.jpg",
+  #iconWidth = 30, iconHeight = 30,
+  iconWidth = pub_rep_plus$effectif_1er_cycle/15,
+  iconHeight = pub_rep_plus$effectif_1er_cycle/13,
+  iconAnchorX = 0, iconAnchorY = 0
+)
+
+output$carto_etab <- renderLeaflet(
+  leaflet() %>% #####
+  setView(lat = 46.7, lng = 2.56, zoom = 6) %>%
+        addProviderTiles("Esri.WorldStreetMap", group = "Réseaux de transport",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>%
+      # Collèges Publics Hors EP
+       addMarkers(data = pub_hors_ep,
+                 ~long, ~lat, icon = greenLeafIcon,
+                 popup = pub_hors_ep$popup_coll,
+                 options=popupOptions(closeButton=T),
+                   #label=df_college_idf$Appellation.officiellle[df_college_idf$Dénomination.principale=="COLLEGE"&df_college_idf$REP=="Non"&df_college_idf$REPplus_OK=="Non"], group='Collèges publics',
+                   clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {    
+                                                                                                                                  var childCount = cluster.getChildCount();  
+                                                                                                                                  if (childCount < 100) {  
+                                                                                                                                  c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                  } else { 
+                                                                                                                                  c = 'rgba(255, 255, 255, 0.7);'  
+                                                                                                                                  }    
+                                                                                                                                  return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
+                                                                                                                                  
+    }"))
+  )%>%
+      # Collèges Publics REP
+      addMarkers(data = pub_rep,
+                 ~long, ~lat, icon =greenLeafIcon_rep, 
+                 popup =  pub_rep$popup_coll,
+                 options=popupOptions(closeButton=T),
+                 clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {
+                                                                                                                                var childCount = cluster.getChildCount();
+                                                                                                                                if (childCount < 100) {
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                } else {
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                }
+                                                                                                                                return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
+
+    }"))
+  ) %>%
+
+      # Collèges Publics REP+
+      addMarkers(data = pub_rep_plus,
+                ~long, ~lat, icon = greenLeafIcon_rep_plus, 
+                 popup =  pub_rep_plus$popup_coll,
+                 options=popupOptions(closeButton=T),
+                 clusterOptions = markerClusterOptions(disableClusteringAtZoom  =13,spiderfyOnMaxZoom = F,iconCreateFunction=JS("function (cluster) {
+                                                                                                                                var childCount = cluster.getChildCount();
+                                                                                                                                if (childCount < 100) {
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                } else {
+                                                                                                                                c = 'rgba(255, 255, 255, 0.7);'
+                                                                                                                                }
+                                                                                                                                return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
+
+    }"))
+  )
+)
+
+leafletOutput("carto_etab")
+
+observeEvent(input$acad_id, {
+  
+acad <- input$acad_id
+    
+data_simul_college_sub_carte <- data_simul_college %>% 
+  filter(acad == acad, annee == 2014)
+
+data_simul_college_sub_carte$popup_coll <- paste("<div class='leaflet-popup-scrolled' style='max-width:600px;min-width:300px;max-height:300px'>", 
+                            "<b><FONT size='3pt'>", 
+                            data_simul_college_sub_carte$nom_norme, 
+                            "</FONT></b><br>",
+                            #"<FONT size='3pt'>", df_college_idf$commune, "</FONT><br>",
+                            
+                            "<hr>",
+                            "<u>Retour du chef d'établissement :</u>", 
+                            "<br>")
+
+
+dep_shp_sub_carte <- dep_shp %>% filter(code_insee %in% unique(data_simul_college$dep))
+
+# iris_shp_sub_carte <- iris_shp %>% filter(dep_num %in% dep_shp_sub_carte$code_insee)
+# 
+# filo_sub_carte <- filo %>% filter(IRIS %in% iris_shp_sub_carte$IRIS)
+
+acad_shp_bbox <- as.vector(st_bbox(acad_shp$geometry[acad_shp$name == acad]))
+
+carto_etab_proxy <- leafletProxy(mapId = "carto_etab", session = session) 
+carto_etab_proxy %>%
+  fitBounds(acad_shp_bbox[1], acad_shp_bbox[2],
+                acad_shp_bbox[3], acad_shp_bbox[4])
+  # addPolygons(data = iris_shp_sub_carte, opacity = 0.4,
+  #                   color = "#020202",
+  #                   stroke = TRUE, weight = 1,group="Quartiers",
+  #                   # label=iris_shp_sub_carte$NOM_IRIS,
+  #                   # popup=iris_shp_sub_carte$popup_iris,
+  #                   fill = T, fillColor = iris_shp$color_d10,
+  #                   fillOpacity = 0.5,highlight = highlightOptions(weight = 6, color = iris_shp$color_d10,
+  #                                                                  bringToFront = TRUE)) 
+    })
+```
+
+
+
+Evolution temporelle {data-icon="fa-line-chart"}
+=======================================================================
+
+### Variable à représenter
+```{r }
+noms_var <- c("effectif_1er_cycle","pcs_tres_favorisee","pcs_favorisee","pcs_moyenne","pcs_defavorisee","ips_total","taux_boursiers","etp_enseignants","ens_inf_35_ans","anc_ens_inf2","anc_ens_sup8","esurs_1er_cycle","taux_reussite_dnb","note_ecrit_dnb")
+
+noms_complets_var <- c('Effectif', "% PCS très favo.","% PCS favo","% PCS moyennes","% PCS defavorisées","IPS moyen","% Boursiers","Nb. ETP enseignants","% enseign. -35ans","% ancienneté inf. 2 ans","% ancienneté sup. 8 ans","E/S moyen","% réussite DNB","Note moyenne DNB")
+
+data_simul_college_bis <- data_simul_college
+for (i in seq_along(1:length(colnames(data_simul_college_bis)))) {
+  if (colnames(data_simul_college_bis)[i] %in% noms_var) {
+    colnames(data_simul_college_bis)[i] <- noms_complets_var[which(noms_var == colnames(data_simul_college_bis)[i])]
+  }
+}
+
+selectInput('var_id', label = NULL, 
+            choices = noms_complets_var)
+
+plot_dynamique <- function(data, etab, variable) {
+
+  acad_etab <- data$acad[data$nom_norme == etab][1]
+
+  mean_nat <- data %>%
+    group_by(annee) %>%
+    summarise(avg_nat = mean(!!sym(variable), na.rm = T))
+
+  mean_acad <- data %>%
+    filter(acad == acad_etab) %>%
+    group_by(annee) %>%
+    summarise(avg_acad = mean(!!sym(variable), na.rm = T))
+
+  mean_etab <- data[data$nom_norme == etab, ][1:4,c("annee", variable)] %>%
+    rename(avg_etab = variable)
+  
+  evo_mean_df <- mean_nat %>%
+    left_join(mean_acad) %>%
+    left_join(mean_etab)
+  
+  prop_x <- list(
+  title = "Année",
+  tick0 = 0,
+  dtick = 1
+)
+  
+  plotly <- plot_ly(evo_mean_df, x=~round(annee),y=~avg_etab, mode = 'lines+markers', name = 'Collège') %>%
+   add_trace(y = ~avg_acad, mode = 'lines+markers', name = 'Académie') %>%
+   add_trace(y = ~avg_etab, mode = 'lines+markers', name = 'Collège') %>%
+   add_trace(y = ~avg_nat, mode = 'lines+markers', name = 'France') %>%
+  layout(legend = list(x = 0.1, y = 0.9), xaxis = prop_x, yaxis = list(title=""), width = 1200)
+
+  # df_mean_agg <- rbind(mean_etab, mean_acad, mean_nat)
+  # 
+  # min <- min(unlist(data[,variable]), na.rm = T)
+  # max <- max(unlist(data[,variable]), na.rm = T)
+
+  # res_plot <- df_mean_agg %>%
+  #   ggplot(aes(x = annee, y = avg, color = Echelon)) +
+  #   geom_line(size = 1.5) +
+  #  # scale_y_continuous(limits = c(min, max)) +
+  #   scale_color_manual(values = c("red", "black", "blue")) +
+  #   theme_bw() +
+  #   labs(x = NULL, y = NULL)
+
+  # res_plot <- plot_ly(df_mean_agg, x=~annee,y=~avg, mode = 'lines+markers')
+
+  return(plotly)
+
+}
+
+renderPlotly({
+      plot_dynamique(data_simul_college_bis, input$etab_id, input$var_id)
+    })
+
+```
+
+Row 
+------------------------------------------------------------------
+
+Données brutes {data-icon="fa-table"}
+=======================================================================
+
+```{r }
+datatable(data_simul_college[,c("nom_norme", "acad", "dep_nom", "nom_commune", "annee","ep","effectif_1er_cycle","pcs_tres_favorisee","pcs_favorisee","pcs_moyenne","pcs_defavorisee","ips_total","taux_boursiers","etp_enseignants","ens_inf_35_ans","anc_ens_inf2","anc_ens_sup8","esurs_1er_cycle","taux_reussite_dnb","note_ecrit_dnb")],
+          colnames = c('Etablissement', "Académie", "Département", "Commune", 'Année', 'Educ. Prioritaire', 'Effectif', "% PCS très favo.","% PCS favo","% PCS moyennes","% PCS defavorisées","IPS moyen","% Boursiers","Nb. ETP enseignants","% enseign. -35ans","% ancienneté inf. 2 ans","% ancienneté sup. 8 ans","E/S moyen","% réussite DNB","Note moyenne DNB"),rownames= FALSE)
+```
+
+
+
+Communiquez {data-icon="fa-comments"}
+=======================================================================
+
+Row
+------------------------------------------------------------------
+```{r }
+textAreaInput("comm_etab", label="Souhaitez-vous signaler des informations particulières concernant votre établissement ?", value = "...",height=250,width=1000)
+```
+
+Row {data-height=5}
+------------------------------------------------------------------
+```{r }
+div(style = "padding: 0px 0px; margin-top:-5em",
+actionButton("buttone", "Envoyer",icon=icon("send"))
+)
+```
+
+Row {data-height=10}
+------------------------------------------------------------------
+
+Row 
+------------------------------------------------------------------
+
+###Aidez nous à améliorer l'application
+
+```{r }
+radioButtons("Quest_1", "Quels indicateurs auriez-vous aimé voir apparaître en première page ?",
+                   choices = c("Nombre d'heure par élève","Taille de l'établissement","Profil des enseignants (âge, ancienneté, ...)"),
+                   selected = NULL)
+
+radioButtons("Quest_2", "Quels indicateurs n'étaient selon vous pas nécessaires en première page ?",
+                   choices = c("Indice de position sociale","Nombre moyen d'élèves par structure","Moyenne aux épreuves écrites du DNB"),
+                   selected = NULL)
+
+textAreaInput("Quest_3", label="Avez-vous d'autres idées pour améliorer l'application ?", value = "...",height=200,width=1000)
+
+actionButton("buttone", "Envoyer",icon=icon("send"))
+
+```
+
