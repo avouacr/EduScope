@@ -1,0 +1,10 @@
+name: eduscope_shinyapp
+title:
+username:
+account: avouacr
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 863259
+bundleId: 2009564
+url: https://avouacr.shinyapps.io/eduscope_shinyapp/
+when: 1555235362.00085
