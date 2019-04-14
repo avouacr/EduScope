@@ -471,6 +471,17 @@ Cartographie {data-icon="fa-map-o"}
 
 ### Carte des collèges
 ```{r }
+
+data_simul_college$popup_coll <- paste("<div class='leaflet-popup-scrolled' style='max-width:600px;min-width:300px;max-height:300px'>", 
+                            "<b><FONT size='3pt'>", 
+                            data_simul_college$nom_norme, 
+                            "</FONT></b><br>",
+                            #"<FONT size='3pt'>", df_college_idf$commune, "</FONT><br>",
+                            
+                            "<hr>",
+                            "<u>Retour du chef d'établissement :</u>", 
+                            "<br>")
+
 pub_hors_ep <- data_simul_college %>% filter(secteur=="public" & ep=="Hors EP")
 pub_rep <- data_simul_college %>% filter(secteur=="public" & ep=="REP")
 pub_rep_plus <- data_simul_college %>% filter(secteur=="public" & ep=="REP+")
@@ -563,6 +574,8 @@ leafletOutput("carto_etab")
 # Zoom lors d'un changement de département
 
 observeEvent(input$dep_id, {
+  
+  # Subset données correspondantes au dep sélectionné
 
 dep_event <- input$dep_id
 dep_event_num <- dep$code_insee[dep$nom == dep_event]
@@ -570,21 +583,12 @@ dep_event_num <- dep$code_insee[dep$nom == dep_event]
 data_simul_college_sub_carte <- data_simul_college %>% 
   filter(dep == dep_event_num, annee == 2014)
 
-data_simul_college_sub_carte$popup_coll <- paste("<div class='leaflet-popup-scrolled' style='max-width:600px;min-width:300px;max-height:300px'>", 
-                            "<b><FONT size='3pt'>", 
-                            data_simul_college_sub_carte$nom_norme, 
-                            "</FONT></b><br>",
-                            #"<FONT size='3pt'>", df_college_idf$commune, "</FONT><br>",
-                            
-                            "<hr>",
-                            "<u>Retour du chef d'établissement :</u>", 
-                            "<br>")
-
-
 dep_shp_sub_carte <- dep_shp %>% filter(code_insee == dep_event_num)
 dep_bbox <- as.vector(st_bbox(dep_shp_sub_carte))
 
 iris_filo_sub <- iris_shp_filo %>% filter(dep_num == dep_event_num)
+
+# Définition des couleurs pour les données Filosofi
 
 distr <- classIntervals(iris_filo_sub$DISP_MED14,
                         4, style = "quantile")$brks
@@ -593,6 +597,8 @@ colours <- brewer.pal(4, "YlOrRd")
 
 iris_filo_sub$color_d10 <- colours[(findInterval(iris_filo_sub$DISP_MED14,
                                                   distr, all.inside = TRUE))]
+
+# Projection sur la carte initiale
 
 carto_etab_proxy <- leafletProxy(mapId = "carto_etab") 
 carto_etab_proxy %>%
