@@ -1,5 +1,4 @@
-# EduScope
-Application permettant un accès rapide et interactif aux principales informations sur les collèges français
+# EduScope : une application permettant un accès rapide et interactif aux principales informations sur les collèges français
 
 Disponible à l'adresse : https://avouacr.shinyapps.io/eduscope_shinyap
 
