@@ -34,12 +34,12 @@ data_simul_college <- read_delim("data/data_simul.csv", delim = "|",
 
 # filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
 
-unzip("academies_shp.zip", exdir = "data/shp")
+unzip("data/shp/academies_shp.zip", exdir = "data/shp")
 
 acad_shp <- st_read("data/shp/academies-20160209.shp", 
                     crs = 4326, stringsAsFactors = FALSE)
 
-unzip("departements_shp.zip", exdir = "data/shp")
+unzip("data/shp/departements_shp.zip", exdir = "data/shp")
 
 dep_shp <- st_read("data/shp/departements-20140306-5m.shp", 
                     crs = 4326, stringsAsFactors = FALSE)
@@ -675,13 +675,13 @@ Communiquez {data-icon="fa-comments"}
 Row
 ------------------------------------------------------------------
 ```{r }
-textAreaInput("comm_etab", label="Souhaitez-vous signaler des informations particulières concernant votre établissement ?", value = "...",height=250,width=1000)
+textAreaInput("comm_etab", label="Souhaitez-vous signaler des informations particulières concernant votre établissement ?", value = "...",height=200,width=1000)
 ```
 
 Row {data-height=5}
 ------------------------------------------------------------------
 ```{r }
-div(style = "padding: 0px 0px; margin-top:-5em",
+div(style = "padding: 0px 0px; margin-top:-2em",
 actionButton("buttone", "Envoyer",icon=icon("send"))
 )
 ```
@@ -692,7 +692,7 @@ Row {data-height=10}
 Row 
 ------------------------------------------------------------------
 
-###Aidez nous à améliorer l'application
+### Aidez nous à améliorer l'application
 
 ```{r }
 radioButtons("Quest_1", "Quels indicateurs auriez-vous aimé voir apparaître en première page ?",
