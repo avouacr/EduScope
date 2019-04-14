@@ -14,7 +14,11 @@ runtime: shiny
 ---
 
 ```{r, include = FALSE}
+<<<<<<< HEAD
 # Chargement des packages (installation si nécessaire)
+=======
+# Chargement des packages (et installation si nécessaire)
+>>>>>>> a949ab9bd6017382de40af119840e99ac1a8d22a
 library(flexdashboard)
 library(tidyverse)
 library(scales)
