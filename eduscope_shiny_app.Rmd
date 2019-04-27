@@ -19,7 +19,7 @@ runtime: shiny
 #     libs<-unlist(list(...))
 #     req<-unlist(lapply(libs,require,character.only=TRUE))
 #     need<-libs[req==FALSE]
-#     if(length(need)>0){ 
+#     if(length(need)>0){
 #         install.packages(need)
 #     }
 # }
@@ -39,31 +39,22 @@ library(maptools)
 library(RColorBrewer)
 library(classInt)
 library(leaflet.extras)
-library(foreign)
 
 # Import des données
 data_simul_college <- read_delim("data/data_simul.csv", delim = "|",
                                  locale = locale(encoding = "latin1"))
 
-if (!("academies-20160209.shp" %in% dir("data/shp"))) {
 unzip("data/shp/academies_shp.zip", exdir = "data/shp")
-}
-
 acad_shp <- st_read("data/shp/academies-20160209.shp", 
                     crs = 4326, stringsAsFactors = FALSE)
 
-if (!("departements-20140306-5m.shp" %in% dir("data/shp"))) {
 unzip("data/shp/departements_shp.zip", exdir = "data/shp")
-}
-
 dep_shp <- st_read("data/shp/departements-20140306-5m.shp", 
                     crs = 4326, stringsAsFactors = FALSE)
 
 communes <- read_delim("data/shp/communes_fr.csv", delim = "|") 
 
-if (!("contours_iris_wgs84.shp" %in% dir("data/shp"))) {
-  unzip("data/shp/contours_iris_wgs84.zip", exdir = "data/shp")
-}
+unzip("data/shp/contours_iris_wgs84.zip", exdir = "data/shp")
 iris_shp <- st_read("data/shp/contours_iris_wgs84.shp",
                     crs = 4326, stringsAsFactors = FALSE)
 
@@ -110,10 +101,10 @@ iris_shp_filo <- iris_shp %>%
   mutate(dep_num = str_sub(INSEE_COM, 1, 2)) %>%
   right_join(filo, by = c("CODE_IRIS" = "IRIS"))
 
-iris_shp_filo$popup_iris <- paste("<div class='leaflet-popup-scrolled' style='max-width:600px;min-width:300px;max-height:300px'>", 
+iris_shp_filo$popup_iris <- paste("<div class='leaflet-popup-scrolled' style='max-width:600px;min-width:300px;max-height:300px'>",
                           "<b><FONT size='5pt'>", iris_shp_filo$NOM_IRIS, "</FONT></b><br>",
                           "<FONT size='3pt'>", iris_shp_filo$LIBCOM, "</FONT><br>",
-                          
+
                           "<hr>",
                           "<u>10% des ménages gagnent moins de</u><b>", iris_shp_filo$DISP_D114,"€","<br>",
                           "<u>50% des ménages gagnent au moins :</u><b>", iris_shp_filo$DISP_MED14,"€","<br>",
@@ -613,13 +604,13 @@ carto_etab_proxy %>%
                     stroke = TRUE, weight = 1,group="Quartiers",
                     label=iris_filo_sub$NOM_IRIS,
                     popup=iris_filo_sub$popup_iris,
-                    fill = T, 
+                    fill = T,
                     fillColor = iris_filo_sub$color_d10,
                     fillOpacity = 0.5,
                     highlight = highlightOptions(weight = 6, color = iris_filo_sub$color_d10,
                     bringToFront = TRUE)
                     ) %>%
-  addLegend("bottomright", 
+  addLegend("bottomright",
                   colors = colours,label=leglabs(paste0(round(distr,0),"€"), over = "Plus de", under = "Moins de"),
                   title= "Revenu médian par quartier", opacity = 0.6)
     })
