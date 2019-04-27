@@ -473,9 +473,12 @@ data_simul_college$popup_coll <- paste("<div class='leaflet-popup-scrolled' styl
                             "<u>Retour du chef d'établissement :</u>", 
                             "<br>")
 
-pub_hors_ep <- data_simul_college %>% filter(secteur=="public" & ep=="Hors EP")
-pub_rep <- data_simul_college %>% filter(secteur=="public" & ep=="REP")
-pub_rep_plus <- data_simul_college %>% filter(secteur=="public" & ep=="REP+")
+pub_hors_ep <- data_simul_college %>% 
+  filter(annee == "2014" & secteur=="public" & ep=="Hors EP")
+pub_rep <- data_simul_college %>% 
+  filter(annee == "2014" & secteur=="public" & ep=="REP")
+pub_rep_plus <- data_simul_college %>% 
+  filter(annee == "2014" & secteur=="public" & ep=="REP+")
 
 greenLeafIcon <- makeIcon(
   iconUrl = "data/picto_carte/Picto_etab_public_violet.png",
@@ -504,10 +507,14 @@ greenLeafIcon_rep_plus<- makeIcon(
   iconAnchorX = 0, iconAnchorY = 0
 )
 
+html_legend_icons <- "<img src='data/picto_carte/Picto_etab_public_violet.png'>Hors EP<br/>
+<img src='data/picto_carte/Picto_etab_public_REP_rose.png'>REP<br/>
+<img src='data/picto_carte/Picto_etab_public_REP+_rouge.png'>REP+"
+
 output$carto_etab <- renderLeaflet(
   leaflet() %>% #####
   setView(lat = 46.7, lng = 2.56, zoom = 6) %>%
-        addProviderTiles("Esri.WorldStreetMap", group = "Réseaux de transport",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE")) %>%
+        addProviderTiles("Esri.WorldStreetMap", group = "Réseaux de transport",options = providerTileOptions(minZoom=5,attribution="Données: MEN-Depp, APAE - Insee, FiLoSoFi")) %>%
       # Collèges Publics Hors EP
        addMarkers(data = pub_hors_ep,
                  ~long, ~lat, icon = greenLeafIcon,
@@ -557,7 +564,8 @@ output$carto_etab <- renderLeaflet(
                                                                                                                                 return new L.DivIcon({ html: '<div style=\"background-color:'+c+'\"><span>' + childCount + '</span></div>', className: 'marker-cluster', iconSize: new L.Point(40, 40) });
 
     }"))
-  ) 
+  ) %>%
+  addControl(html = html_legend_icons, position = "bottomleft")
 )
 
 leafletOutput("carto_etab")
@@ -746,4 +754,6 @@ textAreaInput("Quest_3", label="Avez-vous d'autres idées pour améliorer l'appl
 actionButton("buttone", "Envoyer",icon=icon("send"))
 
 ```
+
+
 
