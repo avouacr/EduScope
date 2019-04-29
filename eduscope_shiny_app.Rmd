@@ -172,9 +172,14 @@ background: #5d6d7e !important;
   font-weight: bold;
 }
 
-
-  
 </style>
+
+```{r }
+observeEvent(input$acad_id,
+  {showModal(modalDialog(title = "Informations générales", 
+                         "Bienvenue sur EduScope, application d'aide à la décision à destination des personnels de l'éducation nationale. Toutes les informations sur les collèges présentées dans cet outil sont fictives et sans lien avec la réalité. N'hésitez pas à nous faire parvenir toute remarque ou suggestion d'amélioration en utilisant l'onglet 'Communiquez'.", footer = modalButton("Fermer"), easyClose = F))}, once = T)
+```
+
 
 Sidebar {.sidebar}
 =======================================================================
@@ -755,3 +760,5 @@ textAreaInput("Quest_3", label="Avez-vous d'autres idées pour améliorer l'appl
 actionButton("buttone", "Envoyer",icon=icon("send"))
 
 ```
+
+
