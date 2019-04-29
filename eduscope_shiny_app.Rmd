@@ -58,7 +58,8 @@ unzip("data/shp/contours_iris_wgs84.zip", exdir = "data/shp")
 iris_shp <- st_read("data/shp/contours_iris_wgs84.shp",
                     crs = 4326, stringsAsFactors = FALSE)
 
-filo <- read_delim("data/filo_iris_2014.csv", delim = "|")
+filo <- read_delim("data/filo_iris_2014.csv", delim = "|", 
+                   guess_max = 3000, locale = locale(decimal_mark = ","))
 
 # Préparation des données pour l'appli Shiny
 acad_shp <- acad_shp %>%
@@ -206,21 +207,21 @@ selectInput('etab_id', label = "Établissement",
 
 ```{r }
 # Hiérarchie des menus sur la sidebar
-observe({
+observeEvent(input$acad_id, {
   noms_dep_sub <- corresp_acad_dep$nom_dep[corresp_acad_dep$acad == input$acad_id]
   updateSelectInput(session, inputId = 'dep_id', label = 'Département',
                     choices = noms_dep_sub[!is.na(noms_dep_sub)],
                     selected = NULL)
 })
   
-observe({
+observeEvent(input$dep_id, {
   noms_communes_sub <- communes$nom_commune[communes$dep_nom == input$dep_id]
   updateSelectInput(session, inputId = 'comm_id', label = 'Commune',
                     choices = noms_communes_sub[!is.na(noms_communes_sub)],
                     selected = NULL)
 })
   
-observe({
+observeEvent(input$comm_id, {
   noms_etab_sub <- data_simul_college$nom_norme[data_simul_college$nom_commune == input$comm_id]
   updateSelectInput(session, inputId = 'etab_id', label = 'Établissement',
                     choices = noms_etab_sub[!is.na(noms_etab_sub)],
@@ -754,6 +755,3 @@ textAreaInput("Quest_3", label="Avez-vous d'autres idées pour améliorer l'appl
 actionButton("buttone", "Envoyer",icon=icon("send"))
 
 ```
-
-
-
