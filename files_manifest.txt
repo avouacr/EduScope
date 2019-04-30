@@ -1,0 +1,7 @@
+data/data_simul.csv
+data/shp/academies_shp.zip
+data/shp/departements_shp.zip
+data/shp/communes_fr.csv
+data/shp/contours_iris_wgs84.zip
+data/filo_iris_2014.csv
+data/picto_carte/
