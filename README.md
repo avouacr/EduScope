@@ -1,8 +1,8 @@
 # EduScope
 
-*Auteurs : Romain Avouac (data scientist), Hugo Botton (data scientist), Alexandre Lim (développeur), Pierre-Emmanuel Morant (principal de collège), Emmanuel Mourtada (principal de collège)*
-
 ![Interface de l'application](https://raw.githubusercontent.com/avouacr/EduScope/master/app_main_page.png "Interface de l'application")
+
+*Auteurs : Romain Avouac (data scientist), Hugo Botton (data scientist), Alexandre Lim (développeur), Pierre-Emmanuel Morant (principal de collège), Emmanuel Mourtada (principal de collège)*
 
 EduScope est une application d'aide à la décision permettant un accès rapide et interactif aux principales informations sur les collèges français. Elle est disponible à l'adresse : https://avouacr.shinyapps.io/eduscope_shinyapp
 
